@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/owl.exe plugin-session-start"
+            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe plugin-session-start"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/owl.exe cleanup-session"
+            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe cleanup-session"
           }
         ]
       }

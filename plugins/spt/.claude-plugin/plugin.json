@@ -1,0 +1,9 @@
+{
+  "name": "spt",
+  "version": "1.5.0",
+  "description": "Spacetime agent messaging and live agent system for Claude Code",
+  "author": {
+    "name": "todlando"
+  },
+  "keywords": ["messaging", "agents", "live", "owl"]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cplugs",
+  "description": "Private plugin marketplace",
+  "owner": {
+    "name": "SaberMage"
+  },
+  "plugins": [
+    {
+      "name": "spt",
+      "description": "Spacetime agent messaging and live agent system for Claude Code",
+      "author": {
+        "name": "todlando"
+      },
+      "source": "./plugins/spt",
+      "category": "development"
+    }
+  ]
+}

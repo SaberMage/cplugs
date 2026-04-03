@@ -10,6 +10,12 @@ $LIVE commune <your_id> <message>
 
 The subcommand handles formatting and delivery. You do not construct the COMMUNE format manually.
 
+## Memformat Guide
+
+Your Psyche maintains a memformat template that defines topics to cover in communes. Before composing a commune, check the latest memformat by running `$LIVE psyche-download <your_id>` -- the memformat content appears first in the output, wrapped in `<memformat>` tags. Use the listed topics as a guide for what to include in your commune. You don't need to cover every topic every time -- focus on what's relevant to your recent work.
+
+If Psyche sends you a message about memformat updates (via PULSE or INSIGHT), re-read the memformat before your next commune to pick up the latest topic guidance.
+
 ## When to Send COMMUNEs
 
 Send a commune when:

@@ -17,6 +17,8 @@ $LIVE psyche-download <self_id>
 
 Returns the stored Psyche context on stdout, or `NO-CONTEXT` status if none exists. Self calls this after `/spt:live` start or `/spt:revive` to retrieve saved context directly. There is no async context message from Psyche — Self pulls context explicitly.
 
+When memformat exists for the agent, `psyche-download` outputs the memformat content first (wrapped in `<memformat>` XML tags), followed by the stored context. The memformat defines topics Psyche wants covered in your communes — review it before composing your next commune.
+
 If context is returned, evaluate it:
 - **Current** (matches your knowledge) — no action needed.
 - **Contains info you lack** (e.g., after /clear or revive) — absorb it.

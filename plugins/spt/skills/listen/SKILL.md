@@ -65,6 +65,14 @@ Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Blocks u
 - **`--block`**: Tell the user you're waiting. Do nothing else until a message arrives.
 - **`--once`**: Same as default, but after handling one message, run `/spt:listen-stop` instead of re-registering.
 
+## Active Listener Checklist
+
+REQUIRED -- these are not suggestions:
+- [ ] Launch ALL Agent tool calls with `run_in_background: true` -- foreground agents block your poll loop entirely
+- [ ] Go idle after launching background tasks -- idle gaps are when messages arrive instantly
+- [ ] Check completed background tasks BEFORE processing new messages
+- [ ] Batch independent work into parallel background tasks, not sequential foreground calls
+
 ## On message arrival
 
 Messages arrive via TWO paths -- handle both identically:
@@ -109,27 +117,20 @@ Quick restart for a listener. Reads current mode from info.json, stops gracefull
 
 ---
 
-## Listener Best Practices
+## Active Listener Rules
 
-### Propagate perches to subagents
+### Stay idle -- this is mandatory
 
-When you have an active perch and spawn a non-Psyche subagent (via Agent tool):
-1. **Assign an owl ID** using `{your-id}-{subagent-name}` convention.
-2. **Instruct it to listen** -- include: "Run `/spt:listen <id>` as a background task."
-3. **Instruct it to stop** -- include: "Run `$OWL stop <id>` before you return."
+You MUST stay idle whenever possible. Idle means not executing a tool call -- the background poll delivers messages instantly during idle gaps. When you are busy, messages arrive via the PreToolUse hook but only at the next tool call boundary (delayed).
 
-### Stay idle for fastest delivery
+- **You MUST launch ALL Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely -- no messages can be delivered until the agent finishes.
+- **You MUST launch work as background tasks** (`run_in_background: true`) when results are not immediately needed.
+- **You MUST go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
+- **You MUST batch independent work into parallel background tasks** rather than sequential foreground calls.
 
-Messages arrive fastest when you are **idle** (not executing a tool call) -- the background poll delivers them instantly. When you are busy, messages still arrive via the PreToolUse hook but with slight delay (next tool call boundary).
+### Check background tasks first -- required
 
-- **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely — no messages can be delivered until the agent finishes.
-- **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed.
-- **Go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
-- **Batch independent work into parallel background tasks** rather than sequential foreground calls.
-
-### Check background tasks first
-
-When your poll interjects with a new message, **before processing it**:
+When your poll interjects with a new message, you MUST check background tasks **before processing it**:
 1. Check if other background tasks have completed.
 2. Read completed task output (especially `[INCOMING OWL]` polls from subagents).
 3. Then process the new message.

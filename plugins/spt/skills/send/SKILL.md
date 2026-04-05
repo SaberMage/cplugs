@@ -11,14 +11,31 @@ allowed-tools: [Bash, Read]
 
 All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
 
-> **Calling convention:** `$OWL send`, `$OWL deliver`, `$OWL reply` read message body from **stdin**:
-> ```bash
-> echo 'msg' | $OWL send <target> <from>
-> # or heredoc:
-> $OWL send <target> <from> <<'EOF'
-> message body
-> EOF
-> ```
+## Messaging Command Reference
+
+All three commands read the message body from **stdin** (pipe or heredoc).
+
+```bash
+# deliver — fire-and-forget to a target (use when you have your own perch)
+$OWL deliver <target> <from> <<'EOF'
+message body
+EOF
+
+# reply — respond to whoever messaged you (sugar for deliver with swapped arg names)
+$OWL reply <sender> <my-id> <<'EOF'
+response body
+EOF
+
+# send — deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
+$OWL send <target> <from> <<'EOF'
+message body
+EOF
+```
+
+**When to use which:**
+- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
+- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
+- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
 
 ## Pre-checks
 
@@ -53,4 +70,9 @@ EOF
 
 ## On response
 
-When the response arrives (background interject or inline), present it to the user.
+**Important:** If you have an active listener perch, always launch Agent tool calls with `run_in_background: true`. Foreground agents block your poll loop — no messages (including replies to your send) can be delivered until the agent finishes.
+
+When the response arrives, present it to the user. Responses arrive via one of three paths:
+- **Background interject** -- the `$OWL send` background task completes with the reply.
+- **Inline** -- if you used `--block`, the reply prints directly.
+- **Hook-injected XML** -- if you are mid-tool-call, the reply appears as `<owl_messages>` XML in your tool call context. The `from` attribute is the sender.

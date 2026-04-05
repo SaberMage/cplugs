@@ -15,6 +15,32 @@ All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook
 
 The `<id>` is a short, single-word identifier (e.g. `deployah`, `waffle`).
 
+## Messaging Command Reference
+
+All three commands read the message body from **stdin** (pipe or heredoc).
+
+```bash
+# deliver — fire-and-forget to a target (use when you have your own perch)
+$OWL deliver <target> <from> <<'EOF'
+message body
+EOF
+
+# reply — respond to whoever messaged you (sugar for deliver with swapped arg names)
+$OWL reply <sender> <my-id> <<'EOF'
+response body
+EOF
+
+# send — deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
+$OWL send <target> <from> <<'EOF'
+message body
+EOF
+```
+
+**When to use which:**
+- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
+- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
+- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+
 ## First-time setup + poll (single call)
 
 ```bash
@@ -41,24 +67,39 @@ Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Blocks u
 
 ## On message arrival
 
-The background task outputs the message directly. Read the background task output.
+Messages arrive via TWO paths -- handle both identically:
 
-1. Parse the first line: extract `<sender-id>` from `__REPLY_TO__:<sender-id>`. The rest is the message body.
-2. If message body is `__EXIT__` -- run `/spt:listen-stop`.
-3. **ALL responses go through the reply** -- including clarifying questions, status updates, errors, and partial results. The sender is waiting for a reply via their inbox.
-4. Follow steps 5-8 below in order.
-5. **Re-register the poll FIRST** -- before replying, before telling the user, before anything else.
+### Path A: Background poll interject
+The `$OWL poll` background task completes and outputs the message.
+- Parse the first line: extract `<sender-id>` from `__REPLY_TO__:<sender-id>`. The rest is the message body.
+
+### Path B: Hook-injected XML
+When you are busy with a tool call, the PreToolUse hook drains pending messages and injects them as XML in your tool call context:
+```xml
+<owl_messages>
+<owl_message from="sender-id" priority="high">message body</owl_message>
+</owl_messages>
+```
+- The `from` attribute IS the sender ID (no `__REPLY_TO__` parsing needed).
+- The message body is inside the tag.
+- You may receive a `[OWL SYSTEM - HIGHEST PRIORITY]` directive -- follow it.
+
+### After receiving (either path)
+1. If message body is `__EXIT__` -- run `/spt:listen-stop`.
+2. **ALL responses go through reply** -- including clarifying questions, status updates, errors, and partial results.
+3. Follow steps 4-7 below in order.
+4. **Re-register the poll FIRST** (Path A only -- if message arrived via hook, poll is still running).
    - **`--once`**: Skip -- you'll run `/spt:listen-stop` after replying.
    - **`--block`**: Re-register and wait again.
-6. Process the message -- do whatever work is needed.
-7. Reply:
+5. Process the message -- do whatever work is needed.
+6. Reply:
    ```bash
    $OWL reply <sender-id> <my-id> <<'EOF'
    <response>
    EOF
    ```
    - **`--once`**: Run `/spt:listen-stop` after replying. Done.
-8. Tell the user what happened and resume prior work.
+7. Tell the user what happened and resume prior work.
 
 ## /spt:listen --reboot
 
@@ -77,12 +118,13 @@ When you have an active perch and spawn a non-Psyche subagent (via Agent tool):
 2. **Instruct it to listen** -- include: "Run `/spt:listen <id>` as a background task."
 3. **Instruct it to stop** -- include: "Run `$OWL stop <id>` before you return."
 
-### Stay idle to stay reachable
+### Stay idle for fastest delivery
 
-Messages can only be delivered when you are **idle** -- not executing any tool call.
+Messages arrive fastest when you are **idle** (not executing a tool call) -- the background poll delivers them instantly. When you are busy, messages still arrive via the PreToolUse hook but with slight delay (next tool call boundary).
 
+- **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely — no messages can be delivered until the agent finishes.
 - **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed.
-- **Go idle after launching.** The idle gap is when messages get delivered.
+- **Go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
 - **Batch independent work into parallel background tasks** rather than sequential foreground calls.
 
 ### Check background tasks first
@@ -105,3 +147,5 @@ When you see `<owl-auto-resume id="..." live="...">`:
 4. If declined, proceed normally.
 
 **Do not resume automatically.** The tag informs -- the user decides.
+
+**After resuming:** Your perch is active again. From this point, always launch Agent tool calls with `run_in_background: true` so your poll loop stays unblocked and messages can be delivered.

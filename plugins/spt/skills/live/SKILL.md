@@ -15,6 +15,32 @@ All commands use `$OWL` and `$LIVE` env vars, auto-injected by the plugin's Sess
 
 Starting a live agent is a single background task. The Psyche launches as an external process, then the command enters your poll loop.
 
+## Messaging Command Reference
+
+All three commands read the message body from **stdin** (pipe or heredoc).
+
+```bash
+# deliver — fire-and-forget to a target (use when you have your own perch)
+$OWL deliver <target> <from> <<'EOF'
+message body
+EOF
+
+# reply — respond to whoever messaged you (sugar for deliver with swapped arg names)
+$OWL reply <sender> <my-id> <<'EOF'
+response body
+EOF
+
+# send — deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
+$OWL send <target> <from> <<'EOF'
+message body
+EOF
+```
+
+**When to use which:**
+- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
+- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
+- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+
 ## Step 1: Start in background
 
 ```bash
@@ -58,6 +84,8 @@ Follow the same message handling protocol as `/spt:listen`:
 3. Process the message.
 4. Reply via `$OWL reply <sender-id> <my-id>`.
 
+Messages may also arrive as `<owl_messages>` XML injected by the PreToolUse hook when you are mid-tool-call. Same handling: read the `from` attribute as sender ID, process, and reply. No re-register needed for hook-delivered messages (poll is still running).
+
 ---
 
 ## ID Recollection
@@ -87,12 +115,13 @@ When the user says `/spt:live` with **no ID**:
 
 ## Listener Best Practices
 
-### Stay idle to stay reachable
+### Stay idle for fastest delivery
 
-Messages can only be delivered when you are **idle** -- not executing any tool call.
+Messages arrive fastest when you are **idle** (not executing a tool call) -- the background poll delivers them instantly. When you are busy, messages still arrive via the PreToolUse hook but with slight delay (next tool call boundary).
 
+- **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely — no messages can be delivered until the agent finishes.
 - **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed.
-- **Go idle after launching.** The idle gap is when messages get delivered.
+- **Go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
 - **Batch independent work into parallel background tasks** rather than sequential foreground calls.
 
 ### Check background tasks first

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe plugin-session-start"
+            "command": "$OWL plugin-session-start"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe cleanup-session"
+            "command": "$OWL cleanup-session"
           }
         ]
       }
@@ -25,18 +25,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe hook-check"
+            "command": "$OWL hook-check"
           }
         ]
       }
     ],
-    "Notification": [
+    "Stop": [
       {
-        "matcher": "idle_prompt",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe hook-idle"
+            "command": "$OWL hook-idle"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$OWL hook-prompt"
           }
         ]
       }
@@ -46,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe hook-subagent-start"
+            "command": "$OWL hook-subagent-start"
           }
         ]
       }
@@ -56,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_DATA}/owl.exe hook-subagent-stop"
+            "command": "$OWL hook-subagent-stop"
           }
         ]
       }

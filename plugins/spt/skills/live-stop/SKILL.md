@@ -3,7 +3,7 @@ name: live-stop
 description: |
   Force-stop a live agent and its Psyche. Use when the user says "kill live agent",
   "force stop", or needs to immediately terminate a live session.
-argument-hint: <id> | --all
+argument-hint: [<id>] | --all
 allowed-tools: [Bash]
 ---
 
@@ -11,10 +11,14 @@ allowed-tools: [Bash]
 
 All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
 
+> **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
+
 ```bash
-$LIVE stop <id>
+$LIVE stop
 $LIVE stop --all
 ```
+
+If auto-detection fails: `$LIVE stop <your-id>`
 
 Stops a live agent **and its Psyche**. The stop sequence:
 1. Kills the Psyche wrapper process (and child claude/poll processes)

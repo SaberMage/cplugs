@@ -13,6 +13,8 @@ All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook
 
 > **Output format:** Status messages (ANSI-colored) go to **stderr**. Message content goes to **stdout**. Agents parse `TAG:value` tokens.
 
+> **Identity auto-detection:** Your identity is auto-detected from your session for messaging commands. Pass your ID explicitly only if auto-detection fails.
+
 The `<id>` is a short, single-word identifier (e.g. `deployah`, `waffle`).
 
 ## Messaging Command Reference
@@ -20,21 +22,23 @@ The `<id>` is a short, single-word identifier (e.g. `deployah`, `waffle`).
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# deliver — fire-and-forget to a target (use when you have your own perch)
-$OWL deliver <target> <from> <<'EOF'
+# deliver -- fire-and-forget to a target (use when you have your own perch)
+$OWL deliver <target> <<'EOF'
 message body
 EOF
 
-# reply — respond to whoever messaged you (sugar for deliver with swapped arg names)
-$OWL reply <sender> <my-id> <<'EOF'
+# reply -- respond to whoever messaged you (sugar for deliver with swapped arg names)
+$OWL reply <sender> <<'EOF'
 response body
 EOF
 
-# send — deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
-$OWL send <target> <from> <<'EOF'
+# send -- deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
+$OWL send <target> <<'EOF'
 message body
 EOF
 ```
+
+If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-id>`, `$OWL reply <sender> <your-id>`, `$OWL send <target> <your-id>`.
 
 **When to use which:**
 - **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
@@ -48,6 +52,8 @@ $OWL poll <id> [mode] --setup
 ```
 
 The `--setup` flag creates the perch (inbox, ready file) before polling. Use on the **first** call. Mode: `listen` (default), `wait` (for `--block`), `once` (for `--once`).
+
+The binary reports its version in the READY status line (e.g., `READY:myid (spt v0.1.0)`). Mention this version when telling the user you're listening.
 
 ## Re-poll (after handling a message)
 
@@ -102,10 +108,11 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
 5. Process the message -- do whatever work is needed.
 6. Reply:
    ```bash
-   $OWL reply <sender-id> <my-id> <<'EOF'
+   $OWL reply <sender-id> <<'EOF'
    <response>
    EOF
    ```
+   If auto-detection fails, pass your ID explicitly: `$OWL reply <sender-id> <my-id>`
    - **`--once`**: Run `/spt:listen-stop` after replying. Done.
 7. Tell the user what happened and resume prior work.
 

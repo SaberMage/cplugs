@@ -3,7 +3,7 @@ name: psyche-download
 description: |
   Download stored Psyche context. Use after /spt:live start or /spt:revive to
   retrieve saved Psyche memory, or before /spt:amend-signoff to check current state.
-argument-hint: <self_id>
+argument-hint: ""
 allowed-tools: [Bash]
 ---
 
@@ -11,15 +11,19 @@ allowed-tools: [Bash]
 
 All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
 
+> **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
+
 ```bash
-$LIVE psyche-download <self_id>
+$LIVE psyche-download
 ```
 
-Returns the stored Psyche context on stdout, or `NO-CONTEXT` status if none exists. Self calls this after `/spt:live` start or `/spt:revive` to retrieve saved context directly. There is no async context message from Psyche — Self pulls context explicitly.
+If auto-detection fails: `$LIVE psyche-download <your-id>`
 
-When memformat exists for the agent, `psyche-download` outputs the memformat content first (wrapped in `<memformat>` XML tags), followed by the stored context. The memformat defines topics Psyche wants covered in your communes — review it before composing your next commune.
+Returns the stored Psyche context on stdout, or `NO-CONTEXT` status if none exists. Self calls this after `/spt:live` start or `/spt:revive` to retrieve saved context directly. There is no async context message from Psyche -- Self pulls context explicitly.
+
+When memformat exists for the agent, `psyche-download` outputs the memformat content first (wrapped in `<memformat>` XML tags), followed by the stored context. The memformat defines topics Psyche wants covered in your communes -- review it before composing your next commune.
 
 If context is returned, evaluate it:
-- **Current** (matches your knowledge) — no action needed.
-- **Contains info you lack** (e.g., after /clear or revive) — absorb it.
-- **Stale or missing recent work** — send a commune to update Psyche.
+- **Current** (matches your knowledge) -- no action needed.
+- **Contains info you lack** (e.g., after /clear or revive) -- absorb it.
+- **Stale or missing recent work** -- send a commune to update Psyche.

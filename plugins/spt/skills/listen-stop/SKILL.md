@@ -3,7 +3,7 @@ name: listen-stop
 description: |
   Stop an owl listener or all listeners. Use when the user says "stop listening",
   "stop owl", or wants to tear down a perch.
-argument-hint: <id> | --all
+argument-hint: [<id>] | --all
 allowed-tools: [Bash]
 ---
 
@@ -11,10 +11,14 @@ allowed-tools: [Bash]
 
 All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
 
+> **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
+
 ```bash
-$OWL stop <id>
+$OWL stop
 $OWL stop --all
 ```
+
+If auto-detection fails, pass your ID explicitly: `$OWL stop <your-id>`
 
 If target is a **live agent** (has `live:true` in info.json), suggest using `/spt:live-stop` instead.
 

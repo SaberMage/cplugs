@@ -13,6 +13,8 @@ All commands use `$OWL` and `$LIVE` env vars, auto-injected by the plugin's Sess
 
 > **Output format:** Status messages (ANSI-colored) go to **stderr**. Live agent output is orange. Agents parse `TAG:value` tokens.
 
+> **Identity auto-detection:** For messaging commands (deliver, reply, send, commune, signoff, etc.), your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails. Startup commands (`start`, `revive`) always require an explicit ID.
+
 Starting a live agent is a single background task. The Psyche launches as an external process, then the command enters your poll loop.
 
 ## Messaging Command Reference
@@ -20,21 +22,23 @@ Starting a live agent is a single background task. The Psyche launches as an ext
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# deliver — fire-and-forget to a target (use when you have your own perch)
-$OWL deliver <target> <from> <<'EOF'
+# deliver -- fire-and-forget to a target (use when you have your own perch)
+$OWL deliver <target> <<'EOF'
 message body
 EOF
 
-# reply — respond to whoever messaged you (sugar for deliver with swapped arg names)
-$OWL reply <sender> <my-id> <<'EOF'
+# reply -- respond to whoever messaged you (sugar for deliver with swapped arg names)
+$OWL reply <sender> <<'EOF'
 response body
 EOF
 
-# send — deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
-$OWL send <target> <from> <<'EOF'
+# send -- deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
+$OWL send <target> <<'EOF'
 message body
 EOF
 ```
+
+If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-id>`, `$OWL reply <sender> <your-id>`, `$OWL send <target> <your-id>`.
 
 **When to use which:**
 - **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
@@ -53,6 +57,8 @@ Run with `run_in_background: true` and description `[INCOMING OWL]`. The start c
 2. **Enters your poll loop** inline -- blocking until a message arrives
 3. Reports the Psyche's session name and generation number
 
+The LIVE-START status includes the spacetime version. Mention this version when telling the user you're live.
+
 When a message arrives, the background task completes. Handle the message, then **re-register**:
 
 ```bash
@@ -68,7 +74,7 @@ Run with `run_in_background: true` and description `[INCOMING OWL]`. Repeat afte
 After launching the background start task:
 
 ```bash
-$LIVE psyche-download <id>
+$LIVE psyche-download
 ```
 
 - If content is current, no action needed.
@@ -82,7 +88,7 @@ Follow the same message handling protocol as `/spt:listen`:
 1. Parse `__REPLY_TO__:<sender-id>` from the first line.
 2. Re-register poll FIRST.
 3. Process the message.
-4. Reply via `$OWL reply <sender-id> <my-id>`.
+4. Reply via `$OWL reply <sender-id>`.
 
 Messages may also arrive as `<owl_messages>` XML injected by the PreToolUse hook when you are mid-tool-call. Same handling: read the `from` attribute as sender ID, process, and reply. No re-register needed for hook-delivered messages (poll is still running).
 
@@ -119,7 +125,7 @@ When the user says `/spt:live` with **no ID**:
 
 Messages arrive fastest when you are **idle** (not executing a tool call) -- the background poll delivers them instantly. When you are busy, messages still arrive via the PreToolUse hook but with slight delay (next tool call boundary).
 
-- **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely — no messages can be delivered until the agent finishes.
+- **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely -- no messages can be delivered until the agent finishes.
 - **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed.
 - **Go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
 - **Batch independent work into parallel background tasks** rather than sequential foreground calls.

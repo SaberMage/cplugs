@@ -23,7 +23,7 @@ Patch Psyche's stored context file after signoff. The Psyche is gone, but the co
 
 ### Steps
 
-1. **Read the current context first** -- run `$LIVE psyche-download` and compare what Psyche knows against what happened since signoff. Only amend with information that is missing or different.
+1. **Read the current context first** -- run `$LIVE psyche-download <your-id>` and compare what Psyche knows against what happened since signoff. Only amend with information that is missing or different.
 2. **Run the amend command** with the delta:
 
 ```bash

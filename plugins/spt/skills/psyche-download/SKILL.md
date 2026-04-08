@@ -14,10 +14,10 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 > **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
 
 ```bash
-$LIVE psyche-download
+$LIVE psyche-download <your-id>
 ```
 
-If auto-detection fails: `$LIVE psyche-download <your-id>`
+Always pass your ID explicitly — auto-detection may fail during startup before the perch is fully registered.
 
 Returns the stored Psyche context on stdout, or `NO-CONTEXT` status if none exists. Self calls this after `/spt:live` start or `/spt:revive` to retrieve saved context directly. There is no async context message from Psyche -- Self pulls context explicitly.
 

@@ -25,7 +25,7 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 1. **Download current Psyche context** to see what Psyche already knows:
    ```bash
-   $LIVE psyche-download
+   $LIVE psyche-download <your-id>
    ```
 
 2. **Compare** the downloaded context against your current knowledge. Identify what's missing or stale -- new work completed, decisions made, context shifts, intentions formed since the last commune. If the download includes a `<memformat>` section, use it as a guide for what topics to cover in your commune.

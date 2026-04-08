@@ -67,15 +67,20 @@ $OWL poll <id> listen --live
 
 Run with `run_in_background: true` and description `[INCOMING OWL]`. Repeat after each message.
 
-**Important:** Only use `$LIVE start` for the initial start. To re-register after handling a message, use `$OWL poll` directly -- `$LIVE start` will reject with `COLLISION`.
+**Important:**
+- `$LIVE start` already enters the poll loop — do **not** run `$OWL poll` immediately after start, or it will reject with `DUPLICATE`.
+- Only use `$OWL poll` to **re-register** after handling a received message.
+- Do not use `$LIVE start` again after the initial start — it will reject with `COLLISION`.
 
 ## Step 2: Retrieve Psyche context
 
 After launching the background start task:
 
 ```bash
-$LIVE psyche-download
+$LIVE psyche-download <id>
 ```
+
+Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during startup before the perch is fully registered.
 
 - If content is current, no action needed.
 - If context has information you lack (e.g., after `/clear`), absorb it.

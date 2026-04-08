@@ -17,7 +17,7 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 1. **Download current Psyche context** to check what's missing:
    ```bash
-   $LIVE psyche-download
+   $LIVE psyche-download <your-id>
    ```
 
 2. **Compare** the downloaded context against your current knowledge. Identify any missing points -- work completed, decisions made, context changes since the last commune.

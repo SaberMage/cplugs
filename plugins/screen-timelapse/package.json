@@ -1,0 +1,37 @@
+{
+  "name": "screen-timelapse-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "screen-timelapse-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "prebuilds",
+    ".claude-plugin",
+    ".mcp.json"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "test": "tsx --test src/**/*.test.ts",
+    "build:native": "cmake-js compile -d native",
+    "prebuild": "node -e \"const fs=require('fs');const p='prebuilds/win32-x64';fs.mkdirSync(p,{recursive:true});fs.copyFileSync('native/build/Release/dwm-capture.node',p+'/node.napi.node');console.log('Copied to',p+'/node.napi.node')\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@skyra/gifenc": "^1.0.1",
+    "node-gyp-build": "^4.8.4",
+    "node-screenshots": "^0.2.8",
+    "sharp": "^0.34.5",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "cmake-js": "^8.0.0",
+    "node-addon-api": "^8.7.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}

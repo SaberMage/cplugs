@@ -9,68 +9,39 @@ allowed-tools: [Bash, Read]
 
 # /spt:send
 
-All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
+## MCP-First Messaging
 
-> **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
+The `spacetime_send` MCP tool is the primary way to send messages. It delivers a message to a target agent (fire-and-forget). The MCP server handles identity resolution, liveness checks, and delivery automatically.
 
-## Messaging Command Reference
+Use MCP tools for all operations except the CLI-only command below.
 
-All three commands read the message body from **stdin** (pipe or heredoc).
+## CLI-Only Command
+
+### ring -- Send message and wait for reply
+
+The `ring` command has no MCP equivalent because it blocks waiting for a reply (creates an ephemeral perch, delivers, and polls).
 
 ```bash
-# deliver -- fire-and-forget to a target (use when you have your own perch)
-$OWL deliver <target> <<'EOF'
-message body
-EOF
-
-# reply -- respond to whoever messaged you (sugar for deliver with swapped arg names)
-$OWL reply <sender> <<'EOF'
-response body
-EOF
-
-# send -- deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
-$OWL send <target> <<'EOF'
+$OWL ring <target> <<'EOF'
 message body
 EOF
 ```
 
-If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-id>`, `$OWL reply <sender> <your-id>`, `$OWL send <target> <your-id>`.
+Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. The command creates an ephemeral reply perch, delivers the message, and blocks until the target replies. Your identity is auto-detected from the session.
 
-**When to use which:**
-- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
-- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
-- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+If auto-detection fails, pass your ID explicitly: `$OWL ring <target> <your-id>`
+
+**When to use ring vs spacetime_send:**
+- **`spacetime_send`** (MCP tool): Fire-and-forget delivery. Use when you have an active listener and will receive the reply via your poll loop or hook injection. No blocking.
+- **`ring`** (CLI): Synchronous request-response. Use when you have no active listener and need to send a message and wait for the reply in one operation. Blocks until reply arrives.
 
 ## Pre-checks
 
-- If `<target>` matches this agent's own listener ID, refuse. Self-sends create loops.
-- All send/deliver/reply commands verify the target is alive automatically.
+- If `<target>` matches this agent's own ID, refuse. Self-sends create loops.
+- All send commands verify the target is alive automatically -- no manual liveness check needed.
 
-## If you already have a listener
+## On Response
 
-Just deliver -- no reply perch needed. Run **not** in background:
+When the response arrives (from `ring` background task or hook-injected XML), present it to the user.
 
-```bash
-$OWL deliver <target> <<'EOF'
-<msg>
-EOF
-```
-
-## If you have no listener
-
-The `send` subcommand creates an ephemeral reply perch, delivers, and polls for the reply. Run with `run_in_background: true` (or `false` for `--block`):
-
-```bash
-$OWL send <target> <<'EOF'
-<msg>
-EOF
-```
-
-## On response
-
-**Important:** If you have an active listener perch, always launch Agent tool calls with `run_in_background: true`. Foreground agents block your poll loop -- no messages (including replies to your send) can be delivered until the agent finishes.
-
-When the response arrives, present it to the user. Responses arrive via one of three paths:
-- **Background interject** -- the `$OWL send` background task completes with the reply.
-- **Inline** -- if you used `--block`, the reply prints directly.
-- **Hook-injected XML** -- if you are mid-tool-call, the reply appears as `<owl_messages>` XML in your tool call context. The `from` attribute is the sender.
+**Important:** If you have an active listener perch, always launch Agent tool calls with `run_in_background: true`. Foreground agents block your poll loop -- no messages (including replies) can be delivered until the agent finishes.

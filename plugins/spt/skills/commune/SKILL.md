@@ -9,6 +9,10 @@ allowed-tools: [Bash, Read]
 
 # /spt:commune
 
+## MCP-First Note
+
+In Claude Code sessions, use the MCP tool `spacetime_commune` to send communal updates. This skill documents the commune protocol for reference.
+
 All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
 
 > **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.

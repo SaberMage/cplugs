@@ -141,3 +141,5 @@ When your poll interjects with a new message, **before processing it**:
 1. Check if other background tasks have completed.
 2. Read completed task output (especially `[INCOMING OWL]` polls from subagents).
 3. Then process the new message.
+
+- **Read background task output directly — no `sleep` prefix.** To inspect a completed or in-progress background task, call the Read tool on its output file. Do NOT chain `sleep N && <read>`: the Bash tool blocks sleeps ≥2s chained before other commands, and background-task stdout is flushed promptly, so a plain Read picks up whatever has been written.

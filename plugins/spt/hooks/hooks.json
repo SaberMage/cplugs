@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL plugin-session-start"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe plugin-session-start"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL cleanup-session"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe cleanup-session"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL hook-check"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe hook-check"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL hook-idle"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe hook-idle"
           }
         ]
       }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL hook-prompt"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe hook-prompt"
           }
         ]
       }
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL hook-subagent-start"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe hook-subagent-start"
           }
         ]
       }
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$OWL hook-subagent-stop"
+            "command": "$CLAUDE_PLUGIN_ROOT/owl.exe hook-subagent-stop"
           }
         ]
       }

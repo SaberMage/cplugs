@@ -8,7 +8,8 @@
   "mcpServers": {
     "screen-timelapse": {
       "command": "node",
-      "args": ["dist/index.js"]
+      "args": ["dist/index.js"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   },
   "keywords": ["screenshot", "timelapse", "mcp", "grid", "debugging", "visual"]

@@ -1,6 +1,6 @@
 {
   "name": "screen-timelapse",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "description": "MCP server for capturing screen timelapse sequences and compiling grid images for AI agent visual debugging",
   "author": {
     "name": "Reavo End"

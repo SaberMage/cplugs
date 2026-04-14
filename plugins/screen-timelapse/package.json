@@ -1,6 +1,6 @@
 {
   "name": "screen-timelapse-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "bin": {
     "screen-timelapse-mcp": "./dist/index.js"

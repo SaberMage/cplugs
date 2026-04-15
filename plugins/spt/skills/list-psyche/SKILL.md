@@ -8,7 +8,7 @@ allowed-tools: [Bash]
 
 # /spt:list-psyche
 
-All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
+All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", restart the Claude Code session so the SessionStart hook re-runs.
 
 ```bash
 $LIVE list-psyches

@@ -9,7 +9,7 @@ allowed-tools: [Bash, Read]
 
 # /spt:listen
 
-All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", run `/spt:env-setup`.
+All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", restart the Claude Code session so the SessionStart hook re-runs.
 
 > **Output format:** Status messages (ANSI-colored) go to **stderr**. Message content goes to **stdout**. Agents parse `TAG:value` tokens.
 

@@ -1,6 +1,6 @@
 {
   "name": "spt",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Spacetime agent messaging and live agent system for Claude Code",
   "author": {
     "name": "todlando"

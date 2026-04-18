@@ -3,7 +3,7 @@ name: live-stop
 description: |
   Force-stop a live agent and its Psyche. Use when the user says "kill live agent",
   "force stop", or needs to immediately terminate a live session.
-argument-hint: [<id>] | --all
+argument-hint: "[<id>] | --all"
 allowed-tools: [Bash]
 ---
 

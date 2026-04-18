@@ -3,7 +3,7 @@ name: listen-stop
 description: |
   Stop an owl listener or all listeners. Use when the user says "stop listening",
   "stop owl", or wants to tear down a perch.
-argument-hint: [<id>] | --all
+argument-hint: "[<id>] | --all"
 allowed-tools: [Bash]
 ---
 

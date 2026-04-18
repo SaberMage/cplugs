@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "ime": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/owl.exe",
-      "args": ["mcp-serve"]
-    }
-  }
-}

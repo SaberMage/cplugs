@@ -1,8 +1,8 @@
-# everything-search
+# everything
 
 Claude Code plugin: instant file search via [voidtools Everything 1.5a](https://www.voidtools.com/forum/viewforum.php?f=12) HTTP JSON API.
 
-Ships a single skill (`everything-search`) that teaches Claude how to query the local Everything HTTP server with `curl`. No MCP server, no native deps, no install step.
+Ships a single skill (`search`, invoked as `/everything:search`) that teaches Claude how to query the local Everything HTTP server with `curl`. No MCP server, no native deps, no install step.
 
 ## Setup
 

@@ -25,12 +25,12 @@
       "category": "development"
     },
     {
-      "name": "everything-search",
-      "description": "Instant file search via voidtools Everything 1.5a HTTP API — skill teaches Claude to query the local Everything HTTP JSON endpoint",
+      "name": "everything",
+      "description": "Instant file search via voidtools Everything 1.5a HTTP API — skill teaches Claude to query the local Everything HTTP JSON endpoint. Invoke as /everything:search.",
       "author": {
         "name": "SaberMage"
       },
-      "source": "./plugins/everything-search",
+      "source": "./plugins/everything",
       "category": "productivity"
     }
   ]

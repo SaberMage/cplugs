@@ -1,5 +1,5 @@
 ---
-name: everything-search
+name: search
 description: Instantly search files and folders on Windows via voidtools Everything 1.5a HTTP JSON API. Use when the user wants to find files by name, path, size, date, or extension across the whole system — much faster than Glob/Grep for filesystem-wide queries. Triggers on "find file", "where is", "locate", "search my drive", "find all .ext files", "everything search".
 ---
 

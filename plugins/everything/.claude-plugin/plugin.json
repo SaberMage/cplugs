@@ -1,6 +1,6 @@
 {
-  "name": "everything-search",
-  "version": "0.1.0",
+  "name": "everything",
+  "version": "0.2.0",
   "description": "Search files instantly via voidtools Everything 1.5a HTTP search API",
   "author": {
     "name": "SaberMage"

@@ -99,16 +99,58 @@ Messages may also arrive as `<owl_messages>` XML injected by the PreToolUse hook
 
 ---
 
-## ID Recollection
+## ID Recollection (no-arg `/spt:live`)
 
-When the user says `/spt:live` with **no ID**:
-1. Read `.claude/LIVE_AGENT_IDS.json` from the project root (format: `{"ids":["waffle","scout"],"last_used":"waffle"}`)
-2. Check active IDs via `/spt:list-live`
-3. Present unused IDs as a numbered list
-4. Start `sleep 10` background task with description `[ID SELECT TIMER]`
-5. **Race**: user responds before timer -- use their choice; timer fires -- auto-select topmost unused ID
-6. If all active, generate a new short single-word ID
-7. On new ID, update `.claude/LIVE_AGENT_IDS.json`
+When the user says `/spt:live` with **no ID**, run the auto-pick flow.
+
+### Step 1: Ask the picker for a spec
+
+```bash
+$LIVE pick-spec
+```
+
+This emits a single JSON object on stdout. Parse it and dispatch on the `kind` field.
+
+### Step 2: Dispatch on `kind`
+
+- **`kind: "auto"`** — exactly one offline agent in this repo's history. Run:
+  ```bash
+  $LIVE start <id>
+  ```
+  where `<id>` is the JSON's `id` field. Tell the user: *"Auto-launching `<id>` (only known agent in this repo)."*
+
+- **`kind: "pick"`** — 2+ offline agents. Fire `AskUserQuestion` using the JSON's `header`, `question`, `options`, and `body_addendum` fields verbatim. Add a 4th option `Other (type a different name)` with free-text input.
+
+- **`kind: "prompt-new"`** — 0 offline agents. Same `AskUserQuestion` pattern, but the `options` are starter role-name suggestions and `body_addendum` lists the full starter pool. 4th option is free-text as above.
+
+### Step 3: Handle the user's choice
+
+- **If the user picked one of the listed options** (`label` from the JSON), run:
+  ```bash
+  $LIVE start <picked-label>
+  ```
+
+- **If the user typed a name into the free-text field**, resolve it first:
+  ```bash
+  $LIVE pick-spec --resolve <name>
+  ```
+  The output JSON has fields `in_this_repo_history`, `live`, and `other_repos` (an array of repo basenames). Dispatch:
+
+  | in_this_repo_history | live | other_repos | Action |
+  |---|---|---|---|
+  | true | false | (any) | **Silent reuse**: `$LIVE start <name>` |
+  | false | false | empty | **Fresh init**: `$LIVE start <name>` |
+  | false | false | non-empty | **Confirm reuse**: fire `AskUserQuestion` listing the repo basenames; on `Reuse here` run `$LIVE start <name>`; on `Cancel` go back to Step 2 |
+  | true | true | (any) | **Offer fork**: fire `AskUserQuestion` with options `Fork to new agent` / `Cancel`. On fork, prompt the user for a new id, then run `$LIVE fork <name> <new-id>` |
+  | false | true | non-empty | **Refuse**: re-fire the original picker (Step 2) with the body addendum prepended by `⚠ <name> is already live in <other-repo> — pick something else.` |
+
+  If the resolve JSON has an `error` field (invalid id format), tell the user the name is invalid and re-prompt.
+
+### Notes
+
+- This flow REPLACES the old `sleep 10 [ID SELECT TIMER]` race. There is no auto-pick-on-timer.
+- The `pick-spec` command is **read-only** — invoking it does not bump activity timestamps. Only `start`, `revive`, `commune`, `echo-commune`, and SessionStart re-attach do.
+- The explicit-id path (`/spt:live <id>`) bypasses this flow entirely and behaves exactly as documented in Step 1 above.
 
 ---
 

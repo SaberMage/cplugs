@@ -4,7 +4,7 @@ description: |
   Start as a live Self agent with Psyche. Use when the user says "live as",
   "start live", "go live", or wants a persistent agent with Psyche companion.
 argument-hint: <id> [--period <seconds>]
-allowed-tools: [Bash, Read]
+allowed-tools: [Bash, Read, Monitor]
 ---
 
 # /spt:live
@@ -51,26 +51,41 @@ If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-i
 $LIVE start <id> [--period <seconds>]
 ```
 
-Run with `run_in_background: true` and description `[INCOMING OWL]`. The start command:
+The start command:
 
 1. **Launches the Psyche** as an external `claude` process (wrapper loop that polls owl and feeds messages to `claude -p --resume`)
-2. **Enters your poll loop** inline -- blocking until a message arrives
+2. **Enters your poll loop** inline -- emitting one `<EVENT>` envelope line per delivery under stream mode
 3. Reports the Psyche's session name and generation number
 
-The LIVE-START status includes the spacetime version. Mention this version when telling the user you're live.
+### Primary (Monitor)
 
-When a message arrives, the background task completes. Handle the message, then **re-register**:
+Invoke `$LIVE start <id> [--period <seconds>]` via the Monitor tool with:
+- `command: "$LIVE start <id>"`
+- `persistent: true`
+- `description: "[INCOMING OWL]"`
 
-```bash
-$OWL poll <id> listen --live
-```
-
-Run with `run_in_background: true` and description `[INCOMING OWL]`. Repeat after each message.
+`$LIVE start` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg|alarm" ...>body</EVENT>` line per delivery.
 
 **Important:**
 - `$LIVE start` already enters the poll loop — do **not** run `$OWL poll` immediately after start, or it will reject with `DUPLICATE`.
-- Only use `$OWL poll` to **re-register** after handling a received message.
 - Do not use `$LIVE start` again after the initial start — it will reject with `COLLISION`.
+- Under stream mode you do NOT re-register after each message; the stream stays alive automatically.
+
+### Fallback (Monitor unavailable)
+
+Invoke `$LIVE start <id> [--period <seconds>]` via the Bash tool with:
+- `run_in_background: true`
+- `description: "[INCOMING OWL]"`
+
+When a message arrives, the background task completes. Handle the message, then **re-register** with a fresh Bash background task (NOT another `$LIVE start` — that would reject with `COLLISION`):
+
+```bash
+$OWL poll <id> listen --live --once
+```
+
+Run with `run_in_background: true` and description `[INCOMING OWL]`. Repeat after every message. The `--once` flag is required so the listener exits after one delivery (matching Bash background-task semantics).
+
+The LIVE-START status includes the spacetime version. Mention this version when telling the user you're live.
 
 ## Step 2: Retrieve Psyche context
 
@@ -89,13 +104,17 @@ Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during s
 
 ## On message arrival
 
-Follow the same message handling protocol as `/spt:listen`:
-1. Parse `__REPLY_TO__:<sender-id>` from the first line.
-2. Re-register poll FIRST.
-3. Process the message.
-4. Reply via `$OWL reply <sender-id>`.
+Follow the same message handling protocol as `/spt:listen`. Messages arrive on TWO orthogonal paths:
 
-Messages may also arrive as `<owl_messages>` XML injected by the PreToolUse hook when you are mid-tool-call. Same handling: read the `from` attribute as sender ID, process, and reply. No re-register needed for hook-delivered messages (poll is still running).
+1. **Parse the envelope.**
+   - **Primary (Monitor stream) / Fallback (Bash `--once`)**: stdout carries a single `<EVENT>` line per delivery. Two shapes:
+     - `<EVENT type="msg" from="<sender-id>">body</EVENT>` — regular message; `from` attribute = sender ID.
+     - `<EVENT type="alarm" target-time="<ISO-8601>" current-time="<ISO-8601>">body</EVENT>` — self-originated timed alarm (per D2.b, no `from`).
+     - Body parsing: split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
+   - **Hook path (orthogonal)**: when you are busy mid-tool-call, PreToolUse injects `<owl_messages>...</owl_messages>` XML into your tool context. Read the `from` attribute as sender ID. Same handling.
+2. **Reply** via `$OWL reply <sender-id>`.
+3. **Primary (Monitor)**: continue — the stream stays alive automatically; the next event will arrive on the same Monitor task. The same applies to direct event delivery and to hook-delivered messages — no re-register needed at all under stream mode.
+4. **Fallback (Bash + `--once`)**: re-register `$OWL poll <id> listen --live --once` as a fresh Bash background task (with `run_in_background: true`). Hook-delivered messages on the fallback path do not require re-register because the underlying Bash poll is still running between events.
 
 ---
 

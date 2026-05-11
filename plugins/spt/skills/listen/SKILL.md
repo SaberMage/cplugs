@@ -4,14 +4,14 @@ description: |
   Start a background owl listener on a perch. Use when the user says "listen as",
   "start listening", or wants to receive inter-agent messages.
 argument-hint: <id> [--reboot] [--block] [--once]
-allowed-tools: [Bash, Read]
+allowed-tools: [Bash, Read, Monitor]
 ---
 
 # /spt:listen
 
 All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook. If commands fail with "command not found", restart the Claude Code session so the SessionStart hook re-runs.
 
-> **Output format:** Status messages (ANSI-colored) go to **stderr**. Message content goes to **stdout**. Agents parse `TAG:value` tokens.
+> **Output format:** Status messages (ANSI-colored) go to **stderr**. Message content goes to **stdout** (one `<EVENT>` line per delivery under stream mode). Agents parse `TAG:value` tokens on stderr and `<EVENT>` envelopes on stdout.
 
 > **Identity auto-detection:** Your identity is auto-detected from your session for messaging commands. Pass your ID explicitly only if auto-detection fails.
 
@@ -51,25 +51,48 @@ If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-i
 $OWL poll <id> [mode] --setup
 ```
 
-The `--setup` flag creates the perch (inbox, ready file) before polling. Use on the **first** call. Mode: `listen` (default), `wait` (for `--block`), `once` (for `--once`).
+The `--setup` flag creates the perch (inbox, ready file) before polling. Use on the **first** call. Mode: `listen` (default), `wait` (for `--block`), `once` (for `--once`). Under stream mode (default, no `--once`) the listener stays alive across messages and emits one `<EVENT>` envelope line per delivery to stdout.
 
 The binary reports its version in the READY status line (e.g., `READY:myid (spt v0.1.0)`). Mention this version when telling the user you're listening.
 
 ## Re-poll (after handling a message)
 
+### Primary (Monitor stream)
+
+No re-register needed. Under stream mode the Monitor task running `$OWL poll <id>` stays alive across messages and emits one `<EVENT>` envelope line per delivery. Continue idling; the next event will arrive on the same stream.
+
+### Fallback (Bash + `--once`)
+
+If the Monitor tool is unavailable and you are running via Bash `run_in_background: true` with `--once`, the background task exits after each delivered message. You MUST re-register with:
+
 ```bash
-$OWL poll <id> [mode]
+$OWL poll <id> [mode] --once
 ```
 
-No `--setup` needed -- the perch already exists.
+Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Omit `--setup` -- the perch already exists.
 
 ## Common rules
 
-Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Blocks until a message arrives, then outputs it.
+### Primary (Monitor)
+
+Invoke `$OWL poll <id> [mode] [--setup]` via the Monitor tool with:
+- `command: "$OWL poll <id> [mode] [--setup]"`
+- `persistent: true`
+- `description: "[INCOMING OWL]"`
+
+Each delivered event arrives as a single stdout line containing one `<EVENT>` envelope. The stream stays alive across messages -- you do NOT re-register after each event.
+
+### Fallback (Bash)
+
+Invoke `$OWL poll <id> [mode] --once` via the Bash tool with:
+- `run_in_background: true`
+- `description: "[INCOMING OWL]"`
+
+Append `--once` to the command. The background task exits after the first message -- re-register per the [Fallback section above](#fallback-bash---once) after every event.
 
 - **Default**: Tell the user you're listening, then **return control immediately**. Handle the message when the background task interjects.
 - **`--block`**: Tell the user you're waiting. Do nothing else until a message arrives.
-- **`--once`**: Same as default, but after handling one message, run `/spt:listen-stop` instead of re-registering.
+- **`--once`**: Same as default, but after handling one message, run `/spt:listen-stop` instead of re-registering. This is the legacy one-shot mode; Bash fallback callers must pass `--once` explicitly.
 
 ## Active Listener Checklist
 
@@ -81,13 +104,39 @@ REQUIRED -- these are not suggestions:
 
 ## On message arrival
 
-Messages arrive via TWO paths -- handle both identically:
+Messages arrive via TWO orthogonal paths -- handle both identically:
 
-### Path A: Background poll interject
-The `$OWL poll` background task completes and outputs the message.
-- Parse the first line: extract `<sender-id>` from `__REPLY_TO__:<sender-id>`. The rest is the message body.
+### Path A (primary): Monitor stream EVENT envelope
 
-### Path B: Hook-injected XML
+Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delivery. Two envelope shapes:
+
+**Regular message:**
+```
+<EVENT type="msg" from="<sender-id>">body</EVENT>
+```
+- `from` attribute = sender ID (no `__REPLY_TO__` parsing needed).
+- Body is between the tags.
+
+**Self-originated timed alarm:**
+```
+<EVENT type="alarm" target-time="<ISO-8601 target>" current-time="<ISO-8601 fire>">body</EVENT>
+```
+- No `from` attribute -- alarm is self-originated.
+- `target-time` = when the alarm was scheduled to fire (ISO-8601).
+- `current-time` = the instant the listener actually fired it (ISO-8601). Drift = current − target.
+- Body is the alarm message text.
+
+**Body parsing rules (apply to both envelopes):**
+1. Split the body on the literal `<br>` token to recover newlines.
+2. HTML-unescape each fragment in this order: `&lt;` → `<`, then `&gt;` → `>`, then `&quot;` → `"`, then `&amp;` → `&` **last** (so embedded `&amp;lt;` sequences don't double-decode into `<`).
+
+The stream stays alive across deliveries -- do not re-register.
+
+### Path A (fallback): Bash `--once` EVENT envelope
+
+If you launched via the Bash fallback with `--once`, you receive the **same** `<EVENT>` envelope on stdout (per the wire-format invariant: `--once` is purely an exit gate, not a format gate). Parse it identically to the primary path above. The only difference: the process exits after one event, so you MUST re-register a fresh background task (see [Common rules / Fallback](#fallback-bash)).
+
+### Path B (orthogonal): Hook-injected XML
 When you are busy with a tool call, the PreToolUse hook drains pending messages and injects them as XML in your tool call context:
 ```xml
 <owl_messages>
@@ -98,29 +147,23 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
 - The message body is inside the tag.
 - You may receive a `[OWL SYSTEM - HIGHEST PRIORITY]` directive -- follow it.
 
-### After receiving (either path)
+### After receiving (any path)
 1. If message body is `__EXIT__` -- run `/spt:listen-stop`.
 2. **ALL responses go through reply** -- including clarifying questions, status updates, errors, and partial results.
-3. Follow steps 4-7 below in order.
-4. **Re-register the poll FIRST** (Path A only -- if message arrived via hook, poll is still running).
-   - **`--once`**: Skip -- you'll run `/spt:listen-stop` after replying.
-   - **`--block`**: Re-register and wait again.
-5. Process the message -- do whatever work is needed.
-6. Reply:
+3. Reply:
    ```bash
    $OWL reply <sender-id> <<'EOF'
    <response>
    EOF
    ```
    If auto-detection fails, pass your ID explicitly: `$OWL reply <sender-id> <my-id>`
-   - **`--once`**: Run `/spt:listen-stop` after replying. Done.
-7. Tell the user what happened and resume prior work.
+4. **Primary (Monitor stream)**: Continue -- the stream stays alive automatically; the next event will arrive on the same Monitor task.
+5. **Fallback (Bash `--once`)**: Re-register the same command (with `--once`) as a fresh background task. If the original was `--block`, re-register and wait again. If the original was the explicit one-shot `--once` flow, run `/spt:listen-stop` instead.
+6. Tell the user what happened and resume prior work.
 
 ## /spt:listen --reboot
 
-Binary: `$OWL reboot <id>`
-
-Quick restart for a listener. Reads current mode from info.json, stops gracefully, clears the perch, and outputs a `REBOOT_POLL_CMD=` line. Run that command with `run_in_background: true` to re-register.
+The reboot flow is now its own skill -- see `plugin/spt/skills/reboot/SKILL.md` (extracted per D8, Phase 27). Use `/spt:reboot <id>` to restart a listener.
 
 ---
 

@@ -119,9 +119,9 @@ This emits a single JSON object on stdout. Parse it and dispatch on the `kind` f
   ```
   where `<id>` is the JSON's `id` field. Tell the user: *"Auto-launching `<id>` (only known agent in this repo)."*
 
-- **`kind: "pick"`** — 2+ offline agents. Fire `AskUserQuestion` using the JSON's `header`, `question`, `options`, and `body_addendum` fields verbatim. Add a 4th option `Other (type a different name)` with free-text input.
+- **`kind: "pick"`** — 2+ offline agents. Fire `AskUserQuestion` using the JSON's `header`, `question`, `options`, and `body_addendum` fields verbatim. Do NOT add an explicit "Other" option — `AskUserQuestion` already provides a native free-text "Other" input; an extra option duplicates it.
 
-- **`kind: "prompt-new"`** — 0 offline agents. Same `AskUserQuestion` pattern, but the `options` are starter role-name suggestions and `body_addendum` lists the full starter pool. 4th option is free-text as above.
+- **`kind: "prompt-new"`** — 0 offline agents. Same `AskUserQuestion` pattern, but the `options` are starter role-name suggestions and `body_addendum` lists the full starter pool. `AskUserQuestion`'s native free-text is used; do not add an explicit "Other" option.
 
 ### Step 3: Handle the user's choice
 
@@ -140,11 +140,29 @@ This emits a single JSON object on stdout. Parse it and dispatch on the `kind` f
   |---|---|---|---|
   | true | false | (any) | **Silent reuse**: `$LIVE start <name>` |
   | false | false | empty | **Fresh init**: `$LIVE start <name>` |
-  | false | false | non-empty | **Confirm reuse**: fire `AskUserQuestion` listing the repo basenames; on `Reuse here` run `$LIVE start <name>`; on `Cancel` go back to Step 2 |
-  | true | true | (any) | **Offer fork**: fire `AskUserQuestion` with options `Fork to new agent` / `Cancel`. On fork, prompt the user for a new id, then run `$LIVE fork <name> <new-id>` |
-  | false | true | non-empty | **Refuse**: re-fire the original picker (Step 2) with the body addendum prepended by `⚠ <name> is already live in <other-repo> — pick something else.` |
+  | false | false | non-empty | **Confirm reuse**: fire `AskUserQuestion`. Construct the body from the template `"Agent {name} exists in other repos: {repos}. Reuse it here?"`, where `{name}` is the resolved name (substituted) and `{repos}` is every string in the JSON `other_repos` array joined with `, ` (substituted, no omission). Options: `Reuse here` / `Cancel`. On `Reuse here` run `$LIVE start <name>`; on `Cancel` see Cancel handling below. |
+  | true | true | (any) | **Offer fork**: fire `AskUserQuestion` with options `Fork to new agent` / `Cancel`. On `Fork to new agent`, prompt the user for a new id, then run `$LIVE fork <name> <new-id>`. On `Cancel`, see Cancel handling below. |
+  | false | true | non-empty | **Refuse + re-pick**: follow Cancel handling below to fire `AskUserQuestion` (forced presentation, all three kinds covered). Before firing, prepend to the constructed `body_addendum` the template-substituted warning `"⚠ {name} is already live in {repos} — pick something else.\n\n"`, where `{name}` is the rejected name and `{repos}` is the JSON `other_repos` array joined with `, `. Do NOT skip the `AskUserQuestion` fire even if `pick-spec` returns `kind:"auto"` or `kind:"prompt-new"`. |
 
   If the resolve JSON has an `error` field (invalid id format), tell the user the name is invalid and re-prompt.
+
+### Cancel handling (after D7 confirm or D8 fork dialog)
+
+When the user picks **Cancel** in any post-resolve `AskUserQuestion`, do NOT loop back into `pick-spec` directly. The Cancel is a signal that the user wants to choose a different agent. Re-invoke the picker with **forced presentation**:
+
+1. Run `$LIVE pick-spec` again to get fresh JSON.
+2. **Always fire `AskUserQuestion`, regardless of the returned `kind`.** Do NOT auto-launch even if `kind:"auto"` is returned (the user just rejected that single historical agent — auto-launching it again is exactly the bug this rule fixes). Construct the `AskUserQuestion` payload per the `kind`:
+   - **`kind:"pick"`** — use JSON's `header`, `question`, `options`, `body_addendum` verbatim (same as Step 2 normal path).
+   - **`kind:"prompt-new"`** — use JSON's `header`, `question`, `options` (starter roles), `body_addendum` verbatim (same as Step 2 normal path).
+   - **`kind:"auto"`** — synthesize an `AskUserQuestion` manually:
+     - `header`: `"Choose live agent"`
+     - `question`: `"Which agent should /spt:live use?"`
+     - `options`: a single option whose `label` is the JSON's `id` field
+     - `body_addendum`: `"Known agent in this repo:\n- <id>\n\nOr type a different name using Other."` (substitute `<id>` from JSON)
+     - Do NOT run `$LIVE start <id>` until the user explicitly selects that option in the `AskUserQuestion`.
+3. Process the user's choice via Step 3 dispatch as usual.
+
+**Forced picker rule:** Cancel-from-D7, Cancel-from-D8, and Refuse-D9 all share the same re-entry path — they re-fire `AskUserQuestion` and never auto-launch.
 
 ### Notes
 

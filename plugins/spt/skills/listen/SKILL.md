@@ -108,7 +108,7 @@ Messages arrive via TWO orthogonal paths -- handle both identically:
 
 ### Path A (primary): Monitor stream EVENT envelope
 
-Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delivery. Two envelope shapes:
+Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delivery. Four envelope shapes:
 
 **Regular message:**
 ```
@@ -126,9 +126,28 @@ Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delive
 - `current-time` = the instant the listener actually fired it (ISO-8601). Drift = current − target.
 - Body is the alarm message text.
 
-**Body parsing rules (apply to both envelopes):**
+**Auto-fired echo-commune brief (Phase 29 AUTO-EC):**
+```
+<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>
+```
+- `from` = psyche-id (`<self-id>-psyche`) — the Psyche wrapper authored the brief.
+- `timestamp` = ISO-8601 instant the brief was composed.
+- `note` carries the trigger source: `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, or `"Echo commune — orphan teardown"`.
+- Body is the haiku-model summary of recent COMMUNE activity. Receivers (Self listeners + Psyche-inbox absorption) parse it identically to other envelopes.
+
+**Self-initiated signoff:**
+```
+<EVENT type="init_signoff" timestamp="<ISO-8601>">body</EVENT>
+```
+- No `from` attribute -- signoff is self-originated (Phase 18.4 / quick-260513-v8f).
+- `timestamp` = ISO-8601 instant the signoff was emitted.
+- Body carries the signoff context (final context-save trigger for the Psyche wrapper).
+
+**Body parsing rules (apply to ALL four envelopes):**
 1. Split the body on the literal `<br>` token to recover newlines.
 2. HTML-unescape each fragment in this order: `&lt;` → `<`, then `&gt;` → `>`, then `&quot;` → `"`, then `&amp;` → `&` **last** (so embedded `&amp;lt;` sequences don't double-decode into `<`).
+
+**Parsers MUST treat the `type` attribute value case-insensitively** (e.g., `echo_commune`, `ECHO_COMMUNE`, and `Echo_Commune` are equivalent). The emitter writes lowercase; the case-insensitive predicate provides forward-compat headroom.
 
 The stream stays alive across deliveries -- do not re-register.
 

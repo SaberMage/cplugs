@@ -64,7 +64,7 @@ Invoke `$LIVE start <id> [--period <seconds>]` via the Monitor tool with:
 - `persistent: true`
 - `description: "[INCOMING OWL]"`
 
-`$LIVE start` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg|alarm" ...>body</EVENT>` line per delivery.
+`$LIVE start` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg|alarm|echo_commune|init_signoff" ...>body</EVENT>` line per delivery. See [On message arrival](#on-message-arrival) for the full envelope-type catalog.
 
 **Important:**
 - `$LIVE start` already enters the poll loop — do **not** run `$OWL poll` immediately after start, or it will reject with `DUPLICATE`.
@@ -107,10 +107,13 @@ Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during s
 Follow the same message handling protocol as `/spt:listen`. Messages arrive on TWO orthogonal paths:
 
 1. **Parse the envelope.**
-   - **Primary (Monitor stream) / Fallback (Bash `--once`)**: stdout carries a single `<EVENT>` line per delivery. Two shapes:
+   - **Primary (Monitor stream) / Fallback (Bash `--once`)**: stdout carries a single `<EVENT>` line per delivery. Four shapes:
      - `<EVENT type="msg" from="<sender-id>">body</EVENT>` — regular message; `from` attribute = sender ID.
      - `<EVENT type="alarm" target-time="<ISO-8601>" current-time="<ISO-8601>">body</EVENT>` — self-originated timed alarm (per D2.b, no `from`).
-     - Body parsing: split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
+     - `<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>` — auto-fired echo-commune brief from the Psyche wrapper, emitted after a SessionStart-triggered `/clear` or `/compact` cycle (Phase 29 AUTO-EC). `from` is the psyche-id (`<self-id>-psyche`); `note` carries the trigger source (e.g., `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, `"Echo commune — orphan teardown"`). Body is the haiku-model summary.
+     - `<EVENT type="init_signoff" timestamp="<ISO-8601>">body</EVENT>` — Self-initiated signoff event (Phase 18.4 / quick-260513-v8f). No `from` attribute — signoff is self-originated. Body carries the signoff context.
+     - Body parsing (applies to all four types — same escape conventions): split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
+     - **Parsers MUST treat the `type` attribute value case-insensitively** (e.g., `echo_commune`, `ECHO_COMMUNE`, and `Echo_Commune` are equivalent). The emitter writes lowercase; the case-insensitive predicate provides forward-compat headroom.
    - **Hook path (orthogonal)**: when you are busy mid-tool-call, PreToolUse injects `<owl_messages>...</owl_messages>` XML into your tool context. Read the `from` attribute as sender ID. Same handling.
 2. **Reply** via `$OWL reply <sender-id>`.
 3. **Primary (Monitor)**: continue — the stream stays alive automatically; the next event will arrive on the same Monitor task. The same applies to direct event delivery and to hook-delivered messages — no re-register needed at all under stream mode.

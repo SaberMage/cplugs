@@ -69,7 +69,7 @@ If the Monitor tool is unavailable and you are running via Bash `run_in_backgrou
 $OWL poll <id> [mode] --once
 ```
 
-Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Omit `--setup` -- the perch already exists.
+Run with `run_in_background: true` and `description: "<< spt event >>"`. Omit `--setup` -- the perch already exists.
 
 ## Common rules
 
@@ -78,7 +78,7 @@ Run with `run_in_background: true` and `description: "[INCOMING OWL]"`. Omit `--
 Invoke `$OWL poll <id> [mode] [--setup]` via the Monitor tool with:
 - `command: "$OWL poll <id> [mode] [--setup]"`
 - `persistent: true`
-- `description: "[INCOMING OWL]"`
+- `description: "<< spt event >>"`
 
 Each delivered event arrives as a single stdout line containing one `<EVENT>` envelope. The stream stays alive across messages -- you do NOT re-register after each event.
 
@@ -86,7 +86,7 @@ Each delivered event arrives as a single stdout line containing one `<EVENT>` en
 
 Invoke `$OWL poll <id> [mode] --once` via the Bash tool with:
 - `run_in_background: true`
-- `description: "[INCOMING OWL]"`
+- `description: "<< spt event >>"`
 
 Append `--once` to the command. The background task exits after the first message -- re-register per the [Fallback section above](#fallback-bash---once) after every event.
 
@@ -201,7 +201,7 @@ You MUST stay idle whenever possible. Idle means not executing a tool call -- th
 
 When your poll interjects with a new message, you MUST check background tasks **before processing it**:
 1. Check if other background tasks have completed.
-2. Read completed task output (especially `[INCOMING OWL]` polls from subagents).
+2. Read completed task output (especially `<< spt event >>` polls from subagents).
 3. Then process the new message.
 
 - **Read background task output directly — no `sleep` prefix.** To inspect a completed or in-progress background task, call the Read tool on its output file. Do NOT chain `sleep N && <read>`: the Bash tool blocks sleeps ≥2s chained before other commands, and background-task stdout is flushed promptly, so a plain Read picks up whatever has been written.

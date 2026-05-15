@@ -3,7 +3,7 @@ name: signoff
 description: |
   Graceful live agent shutdown with final Psyche context save. Use when the user
   says "sign off", "graceful stop", or wants to cleanly end a live session.
-argument-hint: [true|false]
+argument-hint: ""
 allowed-tools: [Bash]
 ---
 
@@ -22,22 +22,27 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 2. **Compare** the downloaded context against your current knowledge. Identify any missing points -- work completed, decisions made, context changes since the last commune.
 
-3. **Sign off with or without a final commune:**
+3. **Sign off** -- write to `.claude/{your-id}-signoff.md`:
 
-   If Psyche context is current (nothing missing):
+   Plain signoff (no final commune body):
    ```bash
-   $LIVE signoff true
+   mkdir -p .claude && : > .claude/{your-id}-signoff.md
    ```
 
-   If Psyche context is missing points, bundle a final commune with signoff:
+   Signoff with a FINAL COMMUNE body (the file content becomes the final
+   commune prepended to INIT_SIGNOFF when Psyche absorbs it):
    ```bash
-   $LIVE signoff true -m "the missing context here"
+   mkdir -p .claude && cat > .claude/{your-id}-signoff.md <<'EOF'
+   the missing context here
+   EOF
    ```
-   The `-m` flag appends a `FINAL COMMUNE:` section to the INIT_SIGNOFF message. Psyche absorbs it before doing its final context save -- one message, no gap.
 
-   If auto-detection fails, pass your ID explicitly: `$LIVE signoff <your-id> true`
-
-The second argument (`true`/`false`) controls whether INIT_SIGNOFF is sent to Psyche. Always use `true` for live agents with Psyche.
+   Your Self listener detects the file, sends a file-drop notification to your
+   Psyche wrapper, prints `STOP:{your-id} (signoff dropped)`, and exits cleanly
+   (code 0 — so Claude Code does not surface the listener termination as
+   "failed"). The Psyche wrapper independently consumes the file, composes an
+   INIT_SIGNOFF envelope (with FINAL COMMUNE if the body is non-empty), runs
+   its final Psyche session, and tears itself down.
 
 **Signoff vs Stop:**
 - **`/spt:signoff`** -- Graceful: INIT_SIGNOFF (with optional final commune) to Psyche first. Use for normal session end.

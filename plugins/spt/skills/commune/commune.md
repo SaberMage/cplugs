@@ -4,17 +4,25 @@ Communes are how you (Self) keep your Psyche informed. They are one-way context 
 
 ## How to Send
 
+Write the commune body to `.claude/{your_id}-commune.md` via Bash heredoc:
+
 ```bash
-$LIVE commune <your_id> <message>
+mkdir -p .claude && cat > .claude/{your_id}-commune.md <<'EOF'
+free-form commune body here
+EOF
 ```
 
-The subcommand handles formatting and delivery. You do not construct the COMMUNE format manually.
+Your Self listener notices the file on its next poll iteration, notifies your Psyche wrapper via a file-drop EVENT, and the wrapper ingests the content. On successful absorption (Psyche subprocess exit 0) the wrapper deletes the file. On error (rate limit, etc) the file is retained for retry on the next consume cycle. Writing again before the wrapper consumes is fine -- the latest write wins (last-write-wins overwrite semantics). You do not construct any COMMUNE format manually; the wrapper composes the user-facing `<EVENT type="commune">` envelope from your file body.
 
 ## Memformat Guide
 
 Your Psyche maintains a memformat template that defines topics to cover in communes. Before composing a commune, check the latest memformat by running `$LIVE psyche-download <your_id>` -- the memformat content appears first in the output, wrapped in `<memformat>` tags. Use the listed topics as a guide for what to include in your commune. You don't need to cover every topic every time -- focus on what's relevant to your recent work.
 
 If Psyche sends you a message about memformat updates (via PULSE or INSIGHT), re-read the memformat before your next commune to pick up the latest topic guidance.
+
+## Visibility of Pending Communes
+
+`$LIVE psyche-download <your_id>` appends a `## Pending Commune (uncommitted)` section to its output whenever a `.claude/{your_id}-commune.md` file exists but has not yet been consumed by the wrapper. This is how you can see your own in-flight commune body even before Psyche absorbs it -- there is no risk of forgetting what you wrote.
 
 ## When to Send COMMUNEs
 
@@ -55,13 +63,27 @@ Think of a commune as a journal entry for your Psyche. The richer your context, 
 Basic communes at transition points:
 
 ```bash
-$LIVE commune waffle "Finished refactoring auth module. Need to update tests next."
-$LIVE commune waffle "Waiting for user response on deployment strategy."
-$LIVE commune waffle "Completed all three API endpoints. Moving to frontend integration."
+mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+Finished refactoring auth module. Need to update tests next.
+EOF
+
+mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+Waiting for user response on deployment strategy.
+EOF
+
+mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+Completed all three API endpoints. Moving to frontend integration.
+EOF
 ```
 
 A reflective journal-style commune with richer context:
 
 ```bash
-$LIVE commune waffle "Spent the last hour on the caching layer. Had doyle-researcher look into Redis vs in-memory -- went with in-memory for now since we're single-node. The user might want to revisit this when scaling comes up. Also noticed the retry logic in the API client could be simplified -- the exponential backoff is overkill for local calls. Worth bringing up next time."
+mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+Spent the last hour on the caching layer. Had doyle-researcher look into
+Redis vs in-memory -- went with in-memory for now since we're single-node.
+The user might want to revisit this when scaling comes up. Also noticed the
+retry logic in the API client could be simplified -- the exponential backoff
+is overkill for local calls. Worth bringing up next time.
+EOF
 ```

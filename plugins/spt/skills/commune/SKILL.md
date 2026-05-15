@@ -13,14 +13,6 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 > **Identity auto-detection:** Your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails.
 
-> **Calling convention:** `$LIVE commune` reads message body from **stdin** (heredoc/pipe), like `deliver`, `reply`, and `send`:
-> ```bash
-> $LIVE commune <<'EOF'
-> message text
-> EOF
-> ```
-> If auto-detection fails: `$LIVE commune <your-id> <<'EOF'`
-
 ## Flow
 
 1. **Download current Psyche context** to see what Psyche already knows:
@@ -28,14 +20,20 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
    $LIVE psyche-download <your-id>
    ```
 
-2. **Compare** the downloaded context against your current knowledge. Identify what's missing or stale -- new work completed, decisions made, context shifts, intentions formed since the last commune. If the download includes a `<memformat>` section, use it as a guide for what topics to cover in your commune.
+2. **Compare** the downloaded context against your current knowledge. Identify what's missing or stale -- new work completed, decisions made, context shifts, intentions formed since the last commune. If the download includes a `<memformat>` section, use it as a guide for what topics to cover in your commune. The download output may also include a `## Pending Commune (uncommitted)` section if a previous commune is still in flight -- that body is queued for the next Psyche consume and you do NOT need to re-send it.
 
-3. **Commune only the delta** -- the points Psyche doesn't already have:
+3. **Commune only the delta** -- write to `.claude/{your-id}-commune.md`:
    ```bash
-   $LIVE commune <<'EOF'
+   mkdir -p .claude && cat > .claude/{your-id}-commune.md <<'EOF'
    the missing context here
    EOF
    ```
+   Your Self listener detects the file on its next poll iteration, notifies
+   your Psyche wrapper, and the wrapper ingests the content via the existing
+   Psyche session. On success (subprocess exit code 0) the wrapper deletes the
+   file. On error (token rate limit, etc) the file is retained and retried on
+   the next consume cycle. If you write again before the wrapper consumes, the
+   latest write wins (last-write-wins overwrite semantics).
 
 If Psyche's context is already current, no commune is needed. Say so and move on.
 

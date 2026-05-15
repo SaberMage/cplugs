@@ -62,7 +62,7 @@ The start command:
 Invoke `$LIVE start <id> [--period <seconds>]` via the Monitor tool with:
 - `command: "$LIVE start <id>"`
 - `persistent: true`
-- `description: "<< spt event >>"`
+- `description: "« spt event »"`
 
 `$LIVE start` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg|alarm|echo_commune|init_signoff" ...>body</EVENT>` line per delivery. See [On message arrival](#on-message-arrival) for the full envelope-type catalog.
 
@@ -75,7 +75,7 @@ Invoke `$LIVE start <id> [--period <seconds>]` via the Monitor tool with:
 
 Invoke `$LIVE start <id> [--period <seconds>]` via the Bash tool with:
 - `run_in_background: true`
-- `description: "<< spt event >>"`
+- `description: "« spt event »"`
 
 When a message arrives, the background task completes. Handle the message, then **re-register** with a fresh Bash background task (NOT another `$LIVE start` — that would reject with `COLLISION`):
 
@@ -83,7 +83,7 @@ When a message arrives, the background task completes. Handle the message, then 
 $OWL poll <id> listen --live --once
 ```
 
-Run with `run_in_background: true` and description `<< spt event >>`. Repeat after every message. The `--once` flag is required so the listener exits after one delivery (matching Bash background-task semantics).
+Run with `run_in_background: true` and description `« spt event »`. Repeat after every message. The `--once` flag is required so the listener exits after one delivery (matching Bash background-task semantics).
 
 The LIVE-START status includes the spacetime version. Mention this version when telling the user you're live.
 
@@ -221,7 +221,7 @@ Messages arrive fastest when you are **idle** (not executing a tool call) -- the
 
 When your poll interjects with a new message, **before processing it**:
 1. Check if other background tasks have completed.
-2. Read completed task output (especially `<< spt event >>` polls from subagents).
+2. Read completed task output (especially `« spt event »` polls from subagents).
 3. Then process the new message.
 
 - **Read background task output directly — no `sleep` prefix.** To inspect a completed or in-progress background task, call the Read tool on its output file. Do NOT chain `sleep N && <read>`: the Bash tool blocks sleeps ≥2s chained before other commands, and background-task stdout is flushed promptly, so a plain Read picks up whatever has been written.

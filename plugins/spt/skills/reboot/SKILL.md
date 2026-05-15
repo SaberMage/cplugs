@@ -36,7 +36,7 @@ on **stdout** and emits a `READY:REBOOT:<id>` status line on **stderr**. The emi
 After `$OWL reboot <id>` returns, run the emitted REBOOT_POLL_CMD value **verbatim** via the Monitor tool with:
 
 - `persistent: true`
-- `description: "<< spt event >>"`
+- `description: "« spt event »"`
 
 The stream-default behavior of `$OWL poll` means the listener stays alive and emits EVENT envelopes per delivery — there is no re-register loop and no need for `--once`. The Monitor stream surfaces each delivery as an event line.
 

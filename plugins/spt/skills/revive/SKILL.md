@@ -58,7 +58,7 @@ After the revive background task launches, run `$LIVE psyche-download <id>` to r
 Run `$LIVE revive <id>` via the Monitor tool with:
 - `command: "$LIVE revive <id>"`
 - `persistent: true`
-- `description: "<< spt event >>"`
+- `description: "« spt event »"`
 
 The revive command kills existing wrapper, Psyche, and Self, then re-enters the poll loop inline. Under stream mode the listener stays alive across messages and emits one `<EVENT>` envelope line per delivery -- no re-register needed.
 
@@ -68,7 +68,7 @@ Do NOT run `$OWL poll` immediately after revive (it will reject with `DUPLICATE`
 
 Run `$LIVE revive <id>` via the Bash tool with:
 - `run_in_background: true`
-- `description: "<< spt event >>"`
+- `description: "« spt event »"`
 
 After each delivered message the background task completes. Re-register with a fresh Bash background task:
 
@@ -76,7 +76,7 @@ After each delivered message the background task completes. Re-register with a f
 $OWL poll <id> listen --live --once
 ```
 
-Run with `run_in_background: true` and description `<< spt event >>`. Repeat after every message.
+Run with `run_in_background: true` and description `« spt event »`. Repeat after every message.
 
 After revive, message handling follows the same dual-path protocol: messages arrive via Monitor stream (primary) or Bash one-shot (fallback) when idle, or via PreToolUse hook injection (when busy). See `/spt:listen` for full details on EVENT envelope parsing.
 

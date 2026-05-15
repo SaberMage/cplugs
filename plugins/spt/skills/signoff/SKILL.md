@@ -4,7 +4,7 @@ description: |
   Graceful live agent shutdown with final Psyche context save. Use when the user
   says "sign off", "graceful stop", or wants to cleanly end a live session.
 argument-hint: ""
-allowed-tools: [Bash]
+allowed-tools: [Bash, Write]
 ---
 
 # /spt:signoff
@@ -22,20 +22,16 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 2. **Compare** the downloaded context against your current knowledge. Identify any missing points -- work completed, decisions made, context changes since the last commune.
 
-3. **Sign off** -- write to `.claude/{your-id}-signoff.md`:
+3. **Sign off** -- use the **Write tool** to create
+   `.claude/{your-id}-signoff.md`. Do not use Bash/heredoc -- Write is the
+   canonical path: no shell escaping, no `EOF` collision risk, and Write
+   auto-creates the `.claude/` parent directory.
 
-   Plain signoff (no final commune body):
-   ```bash
-   mkdir -p .claude && : > .claude/{your-id}-signoff.md
-   ```
-
-   Signoff with a FINAL COMMUNE body (the file content becomes the final
-   commune prepended to INIT_SIGNOFF when Psyche absorbs it):
-   ```bash
-   mkdir -p .claude && cat > .claude/{your-id}-signoff.md <<'EOF'
-   the missing context here
-   EOF
-   ```
+   - **Plain signoff** (no final commune body): Write the file with an empty
+     string as its contents.
+   - **Signoff with a FINAL COMMUNE body**: Write the file with the final
+     commune body as its contents. That body is prepended to INIT_SIGNOFF
+     when Psyche absorbs it.
 
    Your Self listener detects the file, sends a file-drop notification to your
    Psyche wrapper, prints `STOP:{your-id} (signoff dropped)`, and exits cleanly

@@ -4,13 +4,7 @@ Communes are how you (Self) keep your Psyche informed. They are one-way context 
 
 ## How to Send
 
-Write the commune body to `.claude/{your_id}-commune.md` via Bash heredoc:
-
-```bash
-mkdir -p .claude && cat > .claude/{your_id}-commune.md <<'EOF'
-free-form commune body here
-EOF
-```
+Use the **Write tool** to create `.claude/{your_id}-commune.md` with your free-form commune body as its contents. Do not use Bash/heredoc -- Write is the canonical path: no shell escaping, no `EOF` collision risk, and Write auto-creates the `.claude/` parent directory.
 
 Your Self listener notices the file on its next poll iteration, notifies your Psyche wrapper via a file-drop EVENT, and the wrapper ingests the content. On successful absorption (Psyche subprocess exit 0) the wrapper deletes the file. On error (rate limit, etc) the file is retained for retry on the next consume cycle. Writing again before the wrapper consumes is fine -- the latest write wins (last-write-wins overwrite semantics). You do not construct any COMMUNE format manually; the wrapper composes the user-facing `<EVENT type="commune">` envelope from your file body.
 
@@ -60,30 +54,28 @@ Think of a commune as a journal entry for your Psyche. The richer your context, 
 
 ## Examples
 
+Each example below is a complete commune body. To send one, invoke the Write tool with `file_path` = `.claude/waffle-commune.md` and `content` set to the body shown.
+
 Basic communes at transition points:
 
-```bash
-mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+```
 Finished refactoring auth module. Need to update tests next.
-EOF
+```
 
-mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+```
 Waiting for user response on deployment strategy.
-EOF
+```
 
-mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+```
 Completed all three API endpoints. Moving to frontend integration.
-EOF
 ```
 
 A reflective journal-style commune with richer context:
 
-```bash
-mkdir -p .claude && cat > .claude/waffle-commune.md <<'EOF'
+```
 Spent the last hour on the caching layer. Had doyle-researcher look into
 Redis vs in-memory -- went with in-memory for now since we're single-node.
 The user might want to revisit this when scaling comes up. Also noticed the
 retry logic in the API client could be simplified -- the exponential backoff
 is overkill for local calls. Worth bringing up next time.
-EOF
 ```

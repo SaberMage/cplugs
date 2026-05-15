@@ -4,7 +4,7 @@ description: |
   Send a communal update to your Psyche. Use when the user says "commune",
   "update psyche", or wants to sync context with their Psyche companion.
 argument-hint: <msg>
-allowed-tools: [Bash, Read]
+allowed-tools: [Bash, Read, Write]
 ---
 
 # /spt:commune
@@ -22,12 +22,12 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 2. **Compare** the downloaded context against your current knowledge. Identify what's missing or stale -- new work completed, decisions made, context shifts, intentions formed since the last commune. If the download includes a `<memformat>` section, use it as a guide for what topics to cover in your commune. The download output may also include a `## Pending Commune (uncommitted)` section if a previous commune is still in flight -- that body is queued for the next Psyche consume and you do NOT need to re-send it.
 
-3. **Commune only the delta** -- write to `.claude/{your-id}-commune.md`:
-   ```bash
-   mkdir -p .claude && cat > .claude/{your-id}-commune.md <<'EOF'
-   the missing context here
-   EOF
-   ```
+3. **Commune only the delta** -- use the **Write tool** to create
+   `.claude/{your-id}-commune.md` with the delta body as its contents.
+   Do not use Bash/heredoc -- Write is the canonical path: no shell escaping,
+   no `EOF` collision risk, and Write auto-creates the `.claude/` parent
+   directory.
+
    Your Self listener detects the file on its next poll iteration, notifies
    your Psyche wrapper, and the wrapper ingests the content via the existing
    Psyche session. On success (subprocess exit code 0) the wrapper deletes the

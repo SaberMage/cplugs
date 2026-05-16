@@ -40,6 +40,16 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
    INIT_SIGNOFF envelope (with FINAL COMMUNE if the body is non-empty), runs
    its final Psyche session, and tears itself down.
 
+   **Offline path (no live listener):** If no perch is currently live for your
+   agent (no `ready` file under `{SPT_HOME}/owlery/<your-id>/`), the dropped
+   `.claude/{your-id}-signoff.md` simply persists on disk. The next time anyone
+   runs `$LIVE psyche-download <your-id>`, that signoff body is absorbed into
+   the on-disk psyche-context under a `## Pending Signoff (written {mtime})`
+   header and the drop file is deleted. This replaces the deprecated
+   `/spt:amend-signoff` workflow — there is now ONE way to record
+   post-session-end context updates: drop the file with the Write tool, let
+   the next `psyche-download` absorb it.
+
 **Signoff vs Stop:**
 - **`/spt:signoff`** -- Graceful: INIT_SIGNOFF (with optional final commune) to Psyche first. Use for normal session end.
 - **`/spt:live-stop`** -- Force: kills immediately. Use when unresponsive or need immediate kill.

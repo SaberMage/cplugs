@@ -3,6 +3,7 @@ name: list-ready
 description: |
   Show active owl listeners and clean stale perches. Use when the user asks
   "who's listening", "list agents", or "show active listeners".
+argument-hint: "[--all] [--offline] [--here]"
 allowed-tools: [Bash]
 ---
 

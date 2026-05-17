@@ -4,7 +4,7 @@ description: |
   Check which owl agent belongs to the current session. Use when the user asks
   "which agent am I?", "what's my owl name?", or when you need to discover your
   own perch identity.
-argument-hint: (no arguments)
+argument-hint: ""
 allowed-tools: [Bash]
 ---
 

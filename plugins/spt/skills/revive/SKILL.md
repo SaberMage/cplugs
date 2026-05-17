@@ -3,7 +3,7 @@ name: revive
 description: |
   Restart a live agent with new generation. Use when the user says "revive",
   "restart live agent", or wants to refresh a live agent's session.
-argument-hint: <id> [--period <seconds>]
+argument-hint: "<id> [--period <seconds>]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 

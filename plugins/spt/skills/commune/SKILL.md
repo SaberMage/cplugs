@@ -3,7 +3,7 @@ name: commune
 description: |
   Send a communal update to your Psyche. Use when the user says "commune",
   "update psyche", or wants to sync context with their Psyche companion.
-argument-hint: <msg>
+argument-hint: ""
 allowed-tools: [Bash, Read, Write]
 ---
 

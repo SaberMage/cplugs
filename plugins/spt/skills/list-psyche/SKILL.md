@@ -3,6 +3,7 @@ name: list-psyche
 description: |
   Show active Psyche processes. Use when the user asks "list psyches",
   "show psyches", or wants to check Psyche status.
+argument-hint: "[--all] [--offline] [--here]"
 allowed-tools: [Bash]
 ---
 

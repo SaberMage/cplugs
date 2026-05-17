@@ -3,7 +3,7 @@ name: listen
 description: |
   Start a background owl listener on a perch. Use when the user says "listen as",
   "start listening", or wants to receive inter-agent messages.
-argument-hint: <id> [--reboot] [--block] [--once]
+argument-hint: "<id> [--reboot] [--block] [--once]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 

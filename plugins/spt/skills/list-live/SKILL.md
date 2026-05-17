@@ -3,6 +3,7 @@ name: list-live
 description: |
   Show active live agents. Use when the user asks "list live agents",
   "who's live", or "show live".
+argument-hint: "[--all] [--offline] [--here]"
 allowed-tools: [Bash]
 ---
 

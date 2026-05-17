@@ -4,7 +4,7 @@ description: |
   Download stored Psyche context. Use after /spt:live start or /spt:revive to
   retrieve saved Psyche memory. Destructively absorbs any pending
   .claude/{id}-{commune|signoff}.md drop files into the on-disk context.
-argument-hint: ""
+argument-hint: "[<id>]"
 allowed-tools: [Bash]
 ---
 

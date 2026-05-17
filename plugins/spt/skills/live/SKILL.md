@@ -1,9 +1,29 @@
 ---
 name: live
 description: |
-  Start as a live Self agent with Psyche. Use when the user says "live as",
-  "start live", "go live", or wants a persistent agent with Psyche companion.
-argument-hint: <id> [--period <seconds>]
+  Start, resume, or manage a live Self agent with Psyche companion.
+
+  EXPLICIT START phrases (route to /spt:live <id>):
+  - "live as"
+  - "start live"
+  - "go live"
+  - "start a live agent"
+
+  AUTO-RESUME phrases (route to /spt:live --auto, resumes most-recently-active live agent):
+  - continue live work
+  - resume live work
+  - continue live agent
+  - resume live agent
+  - live agent continue
+  - live agent resume
+  - live work continue
+  - live work resume
+
+  Does NOT route here (too ambiguous — require BOTH "live" AND ("agent" or "work")):
+  - "keep going"
+  - "resume work"
+  - "continue" (bare)
+argument-hint: "<id> [--period <seconds>] | [--auto]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 
@@ -44,6 +64,75 @@ If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-i
 - **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
 - **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
 - **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+
+## Auto-resume (--auto, SessionStart auto-pick, casual triggers)
+
+Three entry paths converge here. They share ONE dispatch table and ONE uniform AUTO-07 confirmation hop:
+
+1. **Bare `--auto` flag**: user invoked `/spt:live --auto` (no positional id). Run `$LIVE pick-spec` to get pick JSON.
+2. **SessionStart `<spt-live-auto-pick>` XML block** present in your context: parse the inner JSON as the pick-spec result; do NOT re-invoke `$LIVE pick-spec` (the JSON is already provided).
+3. **Casual-language trigger** (the 8 AUTO-RESUME phrases in this skill's description frontmatter, e.g. "continue live work", "resume live agent"): treat as the bare `--auto` path — run `$LIVE pick-spec` to get pick JSON.
+
+> The AUTO-02 next-work surfacing in Step 3 below ALSO runs at the end of the standard `/spt:live <id>` flow (after `$LIVE psyche-download <id>` in Step 2 retrieves context), not just under --auto. This keeps the "what's next" pane as a one-stop surface independent of entry path.
+
+### Step 1 (Auto-resume): Get pick JSON
+
+If no `<spt-live-auto-pick>` XML block is already in your context with the pick JSON, run:
+
+```bash
+$LIVE pick-spec
+```
+
+Parse the JSON; dispatch on the `kind` field per Step 2 below.
+
+### Step 2 (Auto-resume): Dispatch on `kind`
+
+**AUTO-07 (uniform confirmation rule):** EVERY successful Auto-resume launch — including `kind:"auto"` — fires an `AskUserQuestion` BEFORE any `$LIVE start` invocation. Dispatcher false-positives (e.g., a phrase like "let me continue the live demo" routing here unintentionally) get a clean Cancel exit, never a silent agent launch.
+
+- **`kind:"auto"`** — exactly one offline agent in this repo's history.
+  - Fire `AskUserQuestion` with:
+    - `header`: `"Resume agent"`
+    - `question`: `"Resume <id>?"` (substitute `<id>` from JSON)
+    - `options`: a single option `label: "Resume <id>"`, `description: "Continue this agent's prior session"`
+    - `body_addendum`: `"Auto-resume: <id> is the only offline agent in this repo."`
+  - On `Resume <id>` selected: `$LIVE start <id>`.
+  - On Cancel (no option chosen): exit silently. Do NOT loop into the normal ID Recollection Step 2 — the user explicitly declined the most-recent agent.
+
+- **`kind:"pick"`** — 2+ offline agents. `options[0]` is the most-recently-active per Phase 31 D-12 sort order (`last_active desc, then id asc`).
+  - Fire `AskUserQuestion` with:
+    - `header`: `"Resume agent"`
+    - `question`: `"Resume <options[0].label>?"` (substitute the label of `options[0]`)
+    - `options`: two options — `label: "Resume <options[0].label>"` (description: `"Continue the most-recently-active agent"`) AND `label: "Pick a different agent"` (description: `"Show the full picker"`)
+    - `body_addendum`: `"Auto-resume offers the most-recently-active agent. Choose 'Pick a different agent' for the full list."`
+  - On `Resume <options[0].label>`: `$LIVE start <options[0].label>`.
+  - On `Pick a different agent`: fall through to the normal [ID Recollection Step 2](#step-2-dispatch-on-kind) `kind:"pick"` dispatch (existing flow). Emit a `AUTO_FALLTHROUGH:pick-deferred` stderr breadcrumb for diagnosis: `echo "AUTO_FALLTHROUGH:pick-deferred" >&2`.
+  - On Cancel (no option chosen): exit silently.
+
+- **`kind:"prompt-new"`** — 0 known agents. D-09 no-op enhancement: fall through to the normal [ID Recollection Step 2](#step-2-dispatch-on-kind) `kind:"prompt-new"` dispatch (which already wires FRESH-01 first-commune via the existing flow). Emit a stderr breadcrumb: `echo "AUTO_FALLTHROUGH:prompt-new" >&2`. No AUTO-07 confirmation here — the existing `kind:"prompt-new"` `AskUserQuestion` IS the confirmation; double-prompting would be noise.
+
+- **`kind:"all-live"`** — every known agent is currently live. D-09 no-op enhancement: fall through to the normal [ID Recollection Step 2](#step-2-dispatch-on-kind) `kind:"all-live"` dispatch (Fork-each `AskUserQuestion`). Emit a stderr breadcrumb: `echo "AUTO_FALLTHROUGH:all-live" >&2`. No AUTO-07 confirmation here — the existing all-live dispatch IS the confirmation.
+
+The `AUTO_FALLTHROUGH:{kind}` stderr lines are debug breadcrumbs only — not user-visible; they aid post-hoc diagnosis of which arm fell through.
+
+### Step 3 (Auto-resume, post-start): AUTO-02 next-work surfacing
+
+ONLY if `$LIVE start <id>` succeeded above (NOT on Cancel, NOT on fall-through to normal flow), run:
+
+```bash
+$LIVE psyche-download <id>
+```
+
+Then surface the "next body of work" to the user. Scan the psyche-download stdout line-by-line for the FIRST line that prefix-matches any of these three exact H2 markers (case-sensitive, prefix match — `## Current Focus (gen 45)` qualifies):
+
+- `## Current Focus`
+- `## Next Up`
+- `## Next Steps`
+
+**If a match is found**: extract the section starting at the matched line through (but NOT including) the next line that starts with `## ` at column 0, or to EOF if no such line exists. Print the extracted section verbatim to the user under a "Next body of work" heading.
+
+**If no match is found**: synthesize a 1-2 sentence "Here's where we left off; next step looks like X" summary from the psyche-download output (read the whole download, distill the most-recent commitments + pending threads) and print the synthesis under the same heading.
+
+Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesis is the fallback. Last-commune content is explicitly NOT used for this surface — it's too noisy and often stale relative to the agent's current intent.
 
 ## Step 1: Start in background
 
@@ -100,7 +189,36 @@ Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during s
 - If content is current, no action needed.
 - If context has information you lack (e.g., after `/clear`), absorb it.
 - If stale or missing recent work, send a commune to update Psyche.
-- If `NO-CONTEXT`, both starting fresh.
+- If `psyche-download`'s stderr contains the literal substring `NO-CONTEXT:<id>` (hyphen + colon — anchor strictly; the disjoint `NO_CONTEXT:<id>` underscore-form emitted by `$LIVE fork` MUST NOT match), enter the **first-commune flow** below before doing anything else with this agent. This is the FRESH-02 trigger; the same flow is reached from the `kind:"prompt-new"` arm under [ID Recollection Step 2](#step-2-dispatch-on-kind) (FRESH-01). One unified surface, two trigger paths.
+
+<!-- NO-CONTEXT stderr token contract anchor: src/live/context.rs run_download emits
+     "NO-CONTEXT:{id} (no stored context)" on stderr (exit 0). The predicate above is
+     anchored on the literal "NO-CONTEXT:" hyphen + colon substring. The disjoint
+     "NO_CONTEXT:{id}" underscore form lives in src/live/fork.rs (fork failure path)
+     and MUST NOT match. If src/live/context.rs's emission text is ever refactored,
+     this skill predicate MUST be updated in lockstep. -->
+
+### First-commune flow (FRESH-01 / FRESH-02 / FRESH-03)
+
+When the trigger fires (NO-CONTEXT on `psyche-download`, OR pick-spec returned `kind:"prompt-new"` and the user picked an id), fire a SINGLE `AskUserQuestion` with these fields:
+
+- **header**: `First commune`
+- **question**: `Here is a summary of my first context as live agent <agent_id>. Anything I should add, or proceed to init?` (substitute `<agent_id>` from context)
+- **options**: exactly one option — `label: "Proceed to init"`, `description: "Start the agent now with the summary above as initial context"`
+- **body_addendum**: the `{first commune summary}` string you synthesize per the next bullet. Do NOT add an explicit "Other" option — `AskUserQuestion`'s native free-text "Other" input captures additions.
+
+**Synthesizing `{first commune summary}`**: compose a 4–8 sentence summary combining two sources, in order:
+
+1. **Primary** — this Claude Code session's conversation memory: read your own session context and surface what the user and you have done so far. This IS the agent's first context. (Per Phase 33 CONTEXT D-01.)
+2. **Secondary** — a brief project snapshot: read `README.md`, `CLAUDE.md`, and `.planning/STATE.md` (treat any missing file silently — no error to the user). Distill current project state and progress.
+
+The same synthesis path is used regardless of trigger (Phase 33 D-02 — FRESH-01 and FRESH-02 are not differentiated).
+
+**Handling the response**:
+
+- **"Proceed to init"** with no native-Other free-text addition: run `$LIVE start <id>` (or, if Step 1 already ran, proceed in-flow). The first commune is the synthesized summary itself, delivered by the natural state of the agent.
+- **"Proceed to init"** with native-Other free-text addition: append the user's free-text to the summary, then run `$LIVE start <id>`, then deliver the augmented summary as the first commune via `$OWL deliver <id> <<'EOF' ... EOF` (or `$LIVE commune <id>` from within the agent's session) after start succeeds.
+- **Cancel** (no option chosen): exit silently — matches the existing `kind:"prompt-new"` cancel semantics; do not re-prompt.
 
 ## On message arrival
 
@@ -144,6 +262,12 @@ This emits a single JSON object on stdout. Parse it and dispatch on the `kind` f
 - **`kind: "pick"`** — 2+ offline agents. Fire `AskUserQuestion` using the JSON's `header`, `question`, `options`, and `body_addendum` fields verbatim. Do NOT add an explicit "Other" option — `AskUserQuestion` already provides a native free-text "Other" input; an extra option duplicates it.
 
 - **`kind: "prompt-new"`** — 0 offline agents. Same `AskUserQuestion` pattern, but the `options` are starter role-name suggestions and `body_addendum` lists the full starter pool. `AskUserQuestion`'s native free-text is used; do not add an explicit "Other" option.
+  - **FRESH-01: first-commune before start.** When the user picks a new id (whether from a starter option or by typing into native Other), **BEFORE** running `$LIVE start <id>`, fire the [first-commune flow](#first-commune-flow-fresh-01--fresh-02--fresh-03) — the same single `AskUserQuestion` shape (header / question / options / body_addendum) defined under Step 2's NO-CONTEXT bullet. Use the FRESH-03 verbatim template, synthesize `{first commune summary}` per the D-01 source priority, and only on `Proceed to init` proceed with `$LIVE start <chosen-id>`. On cancel: silent exit (matches existing `kind:"prompt-new"` cancel semantics).
+
+- **`kind: "all-live"`** — every known agent in this repo is currently live. Fire `AskUserQuestion` using the JSON's `header`, `question`, and `options` fields verbatim. There is NO `body_addendum` on this kind. Each option's `label` is `Fork <id>` (exactly one space after `Fork`).
+  - **Fork `<id>` selected**: strip the leading `Fork ` prefix (exactly 5 characters including the trailing space) to recover `<id>`. Prompt the user as plain text for the new agent id, then run `$LIVE fork <id> <new-id>`. Mirrors the existing D8 fork flow in Step 3.
+  - **Free-text typed into the native Other field**: route through `$LIVE pick-spec --resolve <name>` and dispatch via the Step 3 resolve table below (`in_this_repo_history` / `live` / `other_repos`) — same path as the free-text Other under `kind:"pick"`. Preserves the cross-repo collision guard.
+  - **Cancel**: terminate silently. Do NOT loop back into `pick-spec`. This is distinct from the forced-picker rule (Cancel-from-D7 / D8 / D9 in the Step 3 Cancel-handling block) — `all-live` Cancel is a clean exit signal, not a re-pick.
 
 ### Step 3: Handle the user's choice
 

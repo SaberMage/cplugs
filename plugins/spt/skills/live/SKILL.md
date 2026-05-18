@@ -320,8 +320,8 @@ When the user picks **Cancel** in any post-resolve `AskUserQuestion`, do NOT loo
 
 ## Edge Cases
 
-- **Duplicate `/spt:live`**: Rejects with `COLLISION`. Check `/spt:list-live` first, or use `/spt:revive`.
-- **Psyche process dies**: Perch becomes stale. `/spt:list-psyche` cleans it. Use `/spt:revive` to restart.
+- **Duplicate `/spt:live`**: Rejects with `COLLISION`. Check `/spt:list-agents` first, or use `/spt:revive`.
+- **Psyche process dies**: Perch becomes stale. `/spt:list-agents --psyches` cleans it. Use `/spt:revive` to restart.
 - **Psyche spawn failure**: Start command logs error but continues. Listener works without pulse nudges.
 - **Pulse timer**: Integrated into `$OWL poll` via `--pulse-interval <seconds>`. Emits `PULSE_TRIGGER` on expiry.
 - **Psyche messages to Self**: `PULSE ({timestamp}): {reminders}` -- contextual nudges, not commands.

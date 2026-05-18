@@ -4,6 +4,77 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.14] - 2026-05-18
+
+### Changed
+- Skill consolidation (quick-260518-2d6): `/spt:list-live`, `/spt:list-psyche`,
+  `/spt:list-ready` replaced by unified `/spt:list-agents` (session-aware:
+  `$OWL list` for plain listeners, `$LIVE list` in live sessions, `--psyches`
+  flag invokes `$LIVE list-psyches`). `/spt:listen-stop` and `/spt:live-stop`
+  replaced by unified `/spt:force-stop` (session-aware branching on
+  `live:true` in info.json). Binary subcommands unchanged.
+
+### Removed
+- Skill manifests for `/spt:context-save`, `/spt:psyche-download`, and
+  `/spt:reboot` deleted from the user-facing surface. Underlying binary
+  subcommands (`$LIVE context-save`, `$LIVE psyche-download`, `$OWL reboot`)
+  remain reachable — they are internal to Psyche wrapper, SessionStart hook,
+  and listener reboot flows, not user-invoked slash commands.
+
+### Fixed
+- `src/owl/resume.rs` auto-resume banner copy updated to reference
+  `/spt:force-stop` instead of the deleted `/spt:listen-stop` and
+  `/spt:live-stop` slash commands.
+
+## [1.10.13] - 2026-05-17
+
+### Fixed
+- Version-change Stop hook `<step_count>` no longer renders `0` for real
+  version transitions. Floors at `1` when CHANGELOG.md is missing the
+  new-version H2 (degraded path); inclusive-high `old < v <= new` range
+  matches "Yes, full changelog" rendering semantics.
+- Version-change owl messages now classify as `info` priority (was
+  `high`). They no longer surface the "STOP your current task" HIGHEST
+  PRIORITY banner — they ride the existing informational spool-drain
+  channel.
+
+### Changed
+- `DEPLOY.ps1 -Bump` now enforces a curation gate (Phase 34 D-08 round 2,
+  post-UAT clarification): the bump aborts and seeds a `TODO`-stub H2
+  when the new version's CHANGELOG entry is absent. The user fills the
+  curated body and commits as `docs(NN): fill vX.Y.Z CHANGELOG entry`;
+  the next `-Bump` proceeds. Bump commit no longer carries `CHANGELOG.md`
+  — it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
+  curated entry for the released version.
+
+## [1.10.12] - 2026-05-17
+
+### Fixed
+- Version-change Stop hook no longer surfaces as a "Stop hook blocking
+  error". The `<spt-version-changelog>` payload now enqueues as an owl
+  message on Self's perch and surfaces silently via the existing
+  UserPromptSubmit spool drain.
+
+### Changed
+- AskUserQuestion for version-change updates reduced from 4 options to 3.
+  "Remind me later" removed — it rolled the sentinel back, causing the
+  next Stop hook to re-fire immediately (infinite-loop pathology
+  confirmed during Phase 34 UAT).
+- `owl version-remind <old>` subcommand hidden from `--help`. Still
+  callable for any in-flight invocations from older block payloads.
+
+## [1.10.11] - 2026-05-17
+
+### Added
+- Phase 34 (Plan 02) version-change detection: Stop hook compares
+  `env!("CARGO_PKG_VERSION")` against `$SPT_HOME/last-seen-version.json`
+  and emits a `<spt-version-changelog>` payload on mismatch via the
+  `decision:"block"` envelope. CHANGELOG.md is parsed (Keep-a-Changelog
+  1.1.0) for step-count + date metadata. First install / malformed
+  sentinel paths stay silent and silently rewrite the sentinel.
+- `owl version-remind <old>` subcommand for the AUQ's "Remind me later"
+  option — atomic sentinel rollback for next-Stop re-fire.
+
 ## [1.10.10] - 2026-05-16
 
 ### Fixed
@@ -268,49 +339,3 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Added
 - Initial public version-bump checkpoint. Plugin migrated to the `/spt` namespace, shipped via the `cplugs` marketplace. Spacetime filesystem under `%LOCALAPPDATA%\spt` / `~/.spt` with `SPT_HOME` override. Persistent offline perches + indefinite queueing + reconnection. Memformat-driven Psyche brainstorming + INSIGHT messages. `PerchState` enum, `owl doctor`, session detection, optional `agent_id`. Test artifacts added.
-## [1.10.11] - 2026-05-17
-
-### Added
-- Phase 34 (Plan 02) version-change detection: Stop hook compares
-  `env!("CARGO_PKG_VERSION")` against `$SPT_HOME/last-seen-version.json`
-  and emits a `<spt-version-changelog>` payload on mismatch via the
-  `decision:"block"` envelope. CHANGELOG.md is parsed (Keep-a-Changelog
-  1.1.0) for step-count + date metadata. First install / malformed
-  sentinel paths stay silent and silently rewrite the sentinel.
-- `owl version-remind <old>` subcommand for the AUQ's "Remind me later"
-  option Ã¢â‚¬â€ atomic sentinel rollback for next-Stop re-fire.
-## [1.10.12] - 2026-05-17
-
-### Fixed
-- Version-change Stop hook no longer surfaces as a "Stop hook blocking
-  error". The `<spt-version-changelog>` payload now enqueues as an owl
-  message on Self's perch and surfaces silently via the existing
-  UserPromptSubmit spool drain.
-
-### Changed
-- AskUserQuestion for version-change updates reduced from 4 options to 3.
-  "Remind me later" removed â€” it rolled the sentinel back, causing the
-  next Stop hook to re-fire immediately (infinite-loop pathology
-  confirmed during Phase 34 UAT).
-- `owl version-remind <old>` subcommand hidden from `--help`. Still
-  callable for any in-flight invocations from older block payloads.
-## [1.10.13] - 2026-05-17
-
-### Fixed
-- Version-change Stop hook `<step_count>` no longer renders `0` for real
-  version transitions. Floors at `1` when CHANGELOG.md is missing the
-  new-version H2 (degraded path); inclusive-high `old < v <= new` range
-  matches "Yes, full changelog" rendering semantics.
-- Version-change owl messages now classify as `info` priority (was
-  `high`). They no longer surface the "STOP your current task" HIGHEST
-  PRIORITY banner — they ride the existing informational spool-drain
-  channel.
-
-### Changed
-- `DEPLOY.ps1 -Bump` now enforces a curation gate (Phase 34 D-08 round 2,
-  post-UAT clarification): the bump aborts and seeds a `TODO`-stub H2
-  when the new version's CHANGELOG entry is absent. The user fills the
-  curated body and commits as `docs(NN): fill vX.Y.Z CHANGELOG entry`;
-  the next `-Bump` proceeds. Bump commit no longer carries `CHANGELOG.md`
-  — it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
-  curated entry for the released version.

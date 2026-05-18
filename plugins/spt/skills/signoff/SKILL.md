@@ -52,4 +52,4 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 **Signoff vs Stop:**
 - **`/spt:signoff`** -- Graceful: INIT_SIGNOFF (with optional final commune) to Psyche first. Use for normal session end.
-- **`/spt:live-stop`** -- Force: kills immediately. Use when unresponsive or need immediate kill.
+- **`/spt:force-stop`** -- Force: kills immediately. Use when unresponsive or need immediate kill.

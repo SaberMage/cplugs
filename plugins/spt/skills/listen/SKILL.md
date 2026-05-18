@@ -92,7 +92,7 @@ Append `--once` to the command. The background task exits after the first messag
 
 - **Default**: Tell the user you're listening, then **return control immediately**. Handle the message when the background task interjects.
 - **`--block`**: Tell the user you're waiting. Do nothing else until a message arrives.
-- **`--once`**: Same as default, but after handling one message, run `/spt:listen-stop` instead of re-registering. This is the legacy one-shot mode; Bash fallback callers must pass `--once` explicitly.
+- **`--once`**: Same as default, but after handling one message, run `/spt:force-stop` instead of re-registering. This is the legacy one-shot mode; Bash fallback callers must pass `--once` explicitly.
 
 ## Active Listener Checklist
 
@@ -167,7 +167,7 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
 - You may receive a `[OWL SYSTEM - HIGHEST PRIORITY]` directive -- follow it.
 
 ### After receiving (any path)
-1. If message body is `__EXIT__` -- run `/spt:listen-stop`.
+1. If message body is `__EXIT__` -- run `/spt:force-stop`.
 2. **ALL responses go through reply** -- including clarifying questions, status updates, errors, and partial results.
 3. Reply:
    ```bash
@@ -177,12 +177,12 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
    ```
    If auto-detection fails, pass your ID explicitly: `$OWL reply <sender-id> <my-id>`
 4. **Primary (Monitor stream)**: Continue -- the stream stays alive automatically; the next event will arrive on the same Monitor task.
-5. **Fallback (Bash `--once`)**: Re-register the same command (with `--once`) as a fresh background task. If the original was `--block`, re-register and wait again. If the original was the explicit one-shot `--once` flow, run `/spt:listen-stop` instead.
+5. **Fallback (Bash `--once`)**: Re-register the same command (with `--once`) as a fresh background task. If the original was `--block`, re-register and wait again. If the original was the explicit one-shot `--once` flow, run `/spt:force-stop` instead.
 6. Tell the user what happened and resume prior work.
 
 ## /spt:listen --reboot
 
-The reboot flow is now its own skill -- see `plugin/spt/skills/reboot/SKILL.md` (extracted per D8, Phase 27). Use `/spt:reboot <id>` to restart a listener.
+The reboot flow is no longer a user-facing skill -- to restart a listener call `$OWL reboot <id>` directly via Bash and run the emitted REBOOT_POLL_CMD verbatim.
 
 ---
 

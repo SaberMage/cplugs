@@ -40,3 +40,19 @@ If Psyche's context is already current, no commune is needed. Say so and move on
 Read `commune.md` (in this skill directory) for the full commune protocol -- when to send, what to include, and diligence triggers.
 
 **Agent-type guard:** Only works on live agents. If target is not live, refuses with: "Communes require a live agent with Psyche."
+
+## Envelope shape (Phase 23 v1.8)
+
+As of v1.8 Phase 23, commune deliveries are wrapped in a typed EVENT envelope carrying a 5-field stamp (`machine`, `project`, `branch`, `head_sha`, `head_subject`); the prose `COMMUNE (timestamp): body` form is gone.
+
+```xml
+<EVENT type="commune" timestamp="2026-05-20T06:00:00-07:00" machine="hostname" project="claude_skill_owl" branch="main" head_sha="abc123..." head_subject="subject line capped at 72 chars">body</EVENT>
+```
+
+Outside a git repo (D-11), `branch`, `head_sha`, and `head_subject` are omitted entirely (not empty-string-set):
+
+```xml
+<EVENT type="commune" timestamp="2026-05-20T06:00:00-07:00" machine="hostname" project="cwd-basename">body</EVENT>
+```
+
+`$LIVE commune` composes this envelope automatically — Self does NOT manually construct EVENT XML. The wrapper-side parser ignores unknown attrs, so the stamp fields are forward-compatible with older receivers. For drift detection on resume, see the `live` skill.

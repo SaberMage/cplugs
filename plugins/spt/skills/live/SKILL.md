@@ -220,6 +220,41 @@ The same synthesis path is used regardless of trigger (Phase 33 D-02 — FRESH-0
 - **"Proceed to init"** with native-Other free-text addition: append the user's free-text to the summary, then run `$LIVE start <id>`, then deliver the augmented summary as the first commune via `$OWL deliver <id> <<'EOF' ... EOF` (or `$LIVE commune <id>` from within the agent's session) after start succeeds.
 - **Cancel** (no option chosen): exit silently — matches the existing `kind:"prompt-new"` cancel semantics; do not re-prompt.
 
+### Drift detection (Phase 23 v1.8)
+
+As of v1.8 Phase 23, `$LIVE psyche-download <id>` may emit a `<psyche-stamp/>` block (the 5-field stamp captured at last context-save) and ALWAYS emits a `<current/>` block (live stamp values plus `commits_since` and `commits_unpulled` deltas). When `<current project>` equals `<psyche-stamp project>` AND any of `branch` / `head_sha` / `machine` differ, an HTML-comment ATTENTION SELF directive is appended instructing you to fire `AskUserQuestion`.
+
+The exact directive text emitted (quote it verbatim when matching — this is the locked `SAME_PROJECT_DRIFT_DIRECTIVE` from `src/live/context.rs`):
+
+```text
+<!-- ATTENTION SELF: this project has advanced since your last commune/signoff.
+Compare <psyche-stamp/> against <current/> above.
+Fire AskUserQuestion with:
+  header: "Project drift"
+  question: "This project has advanced since my involvement. Should I catch up?"
+  multiSelect: true
+  options:
+    - "Observe new commits"
+    - "Skip for now"
+    - "Don't ask again"
+NOTE: "Peek at peer contexts" option is NOT YET AVAILABLE in v1.8 Phase 23 and MUST NOT be offered.
+-->
+```
+
+When you see this comment, fire `AskUserQuestion` with the header / question / multiSelect / options exactly as quoted, then dispatch on the user's selection(s):
+
+- **`Observe new commits`** → run `git log <psyche-stamp head_sha>..HEAD` to surface what changed to the user. No system action; no marker write; no commune fire.
+- **`Skip for now`** → no-op. The directive will re-appear on the next `$LIVE psyche-download` if drift still applies.
+- **`Don't ask again`** → invoke the write-side suppression subcommand:
+  ```bash
+  $LIVE suppress-drift <self_id> <project>
+  ```
+  where `<self_id>` is your own owl ID and `<project>` is the value from the `<current project="...">` attribute. Subsequent psyche-downloads for the same `(self_id, project)` pair will skip the directive (the `<psyche-stamp/>` and `<current/>` blocks still emit — only the ATTENTION SELF comment is suppressed).
+
+**Do NOT offer a `Peek at peer contexts` option in Phase 23** — it is reserved for Phase 24/25 when peer-context discovery lands. The directive's NOTE line states this explicitly; honour it.
+
+**Cross-project resume (D-10):** when `<current project>` differs from `<psyche-stamp project>`, the ATTENTION SELF directive is NOT emitted (silent by design). You should still NOTICE the project mismatch by reading the two blocks, but do not prompt the user.
+
 ## On message arrival
 
 Follow the same message handling protocol as `/spt:listen`. Messages arrive on TWO orthogonal paths:

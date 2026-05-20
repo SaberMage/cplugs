@@ -53,3 +53,19 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 **Signoff vs Stop:**
 - **`/spt:signoff`** -- Graceful: INIT_SIGNOFF (with optional final commune) to Psyche first. Use for normal session end.
 - **`/spt:force-stop`** -- Force: kills immediately. Use when unresponsive or need immediate kill.
+
+## Envelope shape (Phase 23 v1.8)
+
+As of v1.8 Phase 23, the init_signoff envelope carries a 5-field stamp (`machine`, `project`, `branch`, `head_sha`, `head_subject`) alongside `timestamp`.
+
+```xml
+<EVENT type="init_signoff" timestamp="2026-05-20T06:00:00-07:00" machine="hostname" project="claude_skill_owl" branch="main" head_sha="abc123..." head_subject="subject line">Signoff initiated by Self...</EVENT>
+```
+
+With an optional final-commune body (when the signoff drop file is non-empty):
+
+```xml
+<EVENT type="init_signoff" timestamp="2026-05-20T06:00:00-07:00" machine="hostname" project="claude_skill_owl" branch="main" head_sha="abc123..." head_subject="subject line">FINAL COMMUNE: ...body... | Signoff initiated by Self...</EVENT>
+```
+
+Outside a git repo (D-11), `branch`, `head_sha`, and `head_subject` are omitted entirely. The wrapper-side `type="init_signoff"` predicate is matched case-insensitively and ignores unknown attrs, so the new stamp fields are forward-compatible with older receivers. For drift detection on resume, see the `live` skill.

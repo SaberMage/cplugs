@@ -4,6 +4,51 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.15] - 2026-05-20
+
+Phase 23 (v1.8 Psyche Restructure): commune + signoff payloads now stamp
+project root and HEAD SHA so resumed agents can detect repo drift since
+their last session.
+
+### Added
+- `src/common/git.rs` — `Stamp { machine, project, branch?, head_sha?, head_subject? }`
+  produced by `stamp()`; every git subprocess bounded by a 500ms soft
+  timeout (timeouts/git-missing yield `None` with one-line rate-limited
+  warning). `Stamp::event_attrs()` renders EVENT-envelope attrs;
+  `Stamp::yaml_frontmatter()` renders fenced YAML for file headers.
+  Helpers `commits_since(stored_sha)` and `commits_unpulled()` via
+  `git rev-list --count`. Hostname via `$COMPUTERNAME`/`$HOSTNAME` with
+  `hostname` CLI fallback.
+- `$LIVE suppress-drift` subcommand — writes per-(self_id, project)
+  marker at `$SPT_HOME/suppressions/{self_id}__{project}.marker` so the
+  drift directive is silenced for the chosen agent+project pair.
+- `psyche-download` payload emits `<psyche-stamp/>` (when stored) and
+  `<current/>` (always, with `commits_since` + `commits_unpulled`)
+  blocks, plus a same-project drift directive (AskUserQuestion with 3
+  rendered options; 4th `Peek at peer contexts` option stays hidden
+  pending Phase 25) when stored vs current `head_sha` diverges.
+
+### Changed
+- Plain commune cut over to EVENT envelope (D-06): replaces the prose
+  `COMMUNE (ts): body` shape with `<EVENT type="commune" ... />`.
+- `init_signoff`, `echo_commune`, and wrapper `file_drop` payloads
+  carry the 5 stamp attrs (`machine`, `project`, `branch`, `head_sha`,
+  `head_subject`); absent optionals omit entirely (D-11).
+- `context-save` writes the YAML stamp as file-head front-matter; each
+  `amend-signoff` post-signoff section writes its own YAML block
+  inside the section.
+- `psyche-download` strips file-head front-matter from the surfaced
+  body region; suppression-marker read short-circuits the directive.
+- `commune`, `signoff`, and `live` SKILL.md updated with the new
+  envelope shape, drift-directive option-to-action mapping, and
+  suppress-drift teaching block.
+
+### Notes
+- Non-git directories: all five stamp fields except `machine` and
+  `project` gracefully omit. Composers and writers stay green.
+- Phase 23 verification: 4/4 success criteria PASS, 551/551 lib tests
+  pass under `--test-threads=1`, release build green.
+
 ## [1.10.14] - 2026-05-18
 
 ### Changed
@@ -18,7 +63,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 - Skill manifests for `/spt:context-save`, `/spt:psyche-download`, and
   `/spt:reboot` deleted from the user-facing surface. Underlying binary
   subcommands (`$LIVE context-save`, `$LIVE psyche-download`, `$OWL reboot`)
-  remain reachable — they are internal to Psyche wrapper, SessionStart hook,
+  remain reachable â€” they are internal to Psyche wrapper, SessionStart hook,
   and listener reboot flows, not user-invoked slash commands.
 
 ### Fixed
@@ -35,7 +80,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
   matches "Yes, full changelog" rendering semantics.
 - Version-change owl messages now classify as `info` priority (was
   `high`). They no longer surface the "STOP your current task" HIGHEST
-  PRIORITY banner — they ride the existing informational spool-drain
+  PRIORITY banner â€” they ride the existing informational spool-drain
   channel.
 
 ### Changed
@@ -44,7 +89,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
   when the new version's CHANGELOG entry is absent. The user fills the
   curated body and commits as `docs(NN): fill vX.Y.Z CHANGELOG entry`;
   the next `-Bump` proceeds. Bump commit no longer carries `CHANGELOG.md`
-  — it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
+  â€” it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
   curated entry for the released version.
 
 ## [1.10.12] - 2026-05-17
@@ -57,7 +102,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Changed
 - AskUserQuestion for version-change updates reduced from 4 options to 3.
-  "Remind me later" removed — it rolled the sentinel back, causing the
+  "Remind me later" removed â€” it rolled the sentinel back, causing the
   next Stop hook to re-fire immediately (infinite-loop pathology
   confirmed during Phase 34 UAT).
 - `owl version-remind <old>` subcommand hidden from `--help`. Still
@@ -73,7 +118,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
   1.1.0) for step-count + date metadata. First install / malformed
   sentinel paths stay silent and silently rewrite the sentinel.
 - `owl version-remind <old>` subcommand for the AUQ's "Remind me later"
-  option — atomic sentinel rollback for next-Stop re-fire.
+  option â€” atomic sentinel rollback for next-Stop re-fire.
 
 ## [1.10.10] - 2026-05-16
 
@@ -118,12 +163,12 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.10.3] - 2026-05-14
 
 ### Changed
-- Skill descriptions use guillemets (`Ãƒâ€šÃ‚Â« spt event Ãƒâ€šÃ‚Â»`) for the description chip ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â consistent visual marker across listener/revive surfaces.
+- Skill descriptions use guillemets (`ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â« spt event ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»`) for the description chip ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â consistent visual marker across listener/revive surfaces.
 
 ## [1.10.2] - 2026-05-14
 
 ### Changed
-- Renamed `[INCOMING OWL]` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `<< spt event >>` in listener skill descriptions.
+- Renamed `[INCOMING OWL]` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `<< spt event >>` in listener skill descriptions.
 
 ## [1.10.1] - 2026-05-14
 
@@ -156,7 +201,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.9.13] - 2026-05-13
 
 ### Fixed
-- Psyche-wrapper inner poll now receives TCP wake by passing `--once` to the inner `owl poll` subprocess; collapses commune ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ psyche.md latency from the pulse-cadence bound (~20min) to sub-second.
+- Psyche-wrapper inner poll now receives TCP wake by passing `--once` to the inner `owl poll` subprocess; collapses commune ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ psyche.md latency from the pulse-cadence bound (~20min) to sub-second.
 
 ## [1.9.12] - 2026-05-13
 
@@ -183,8 +228,8 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.9.8] - 2026-05-10
 
 ### Added
-- `$LIVE pick-spec` subcommand (Phase 26-03) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â emits structured pick-spec JSON for `/spt:live` to interpret.
-- `$LIVE fork <src> <new_id>` primitive (Phase 26-04) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â copies an existing live agent's identity to a new ID with collision rejection.
+- `$LIVE pick-spec` subcommand (Phase 26-03) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â emits structured pick-spec JSON for `/spt:live` to interpret.
+- `$LIVE fork <src> <new_id>` primitive (Phase 26-04) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â copies an existing live agent's identity to a new ID with collision rejection.
 - Phase 26-02 activity bumps: cwd populated uniformly at every `InfoJson::new` site.
 
 ### Changed
@@ -212,13 +257,13 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.9.2] - 2026-04-21
 
 ### Added
-- Phase 18.8: full rewrite of echo-commune ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â stderr capture, fresh `claude` session, jsonl excerpt extraction. Eliminates the Self-jsonl write-contention class and surfaces previously-silent subprocess failures.
+- Phase 18.8: full rewrite of echo-commune ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â stderr capture, fresh `claude` session, jsonl excerpt extraction. Eliminates the Self-jsonl write-contention class and surfaces previously-silent subprocess failures.
 - `common::owlery` cursor helpers (`now_secs`, `write_last_commune_epoch`).
-- Phase 18.7: listener-owned timed-alarm firing (renamed `/spt:timed-pulse` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `/spt:new-alarm`). Scheduler bumps a wake sentinel after persist; wrapper compose_passive_context filters to `epoch > now`.
+- Phase 18.7: listener-owned timed-alarm firing (renamed `/spt:timed-pulse` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `/spt:new-alarm`). Scheduler bumps a wake sentinel after persist; wrapper compose_passive_context filters to `epoch > now`.
 - Phase 18.7.1 hotfix: mid-iteration alarm-fire regression closed (F3 spool-direct write, F4 SPT_TRACE gating, F5 panic-logging, cache-mtime guard fix).
 
 ### Removed
-- `src/live/timed_pulse.rs`, `wrapper/scheduler.rs`, `reload_timed_pulses`, `TimedPulseOutcome` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â wrapper is now read-only over pulse state.
+- `src/live/timed_pulse.rs`, `wrapper/scheduler.rs`, `reload_timed_pulses`, `TimedPulseOutcome` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â wrapper is now read-only over pulse state.
 
 ## [1.8.11] - 2026-04-20
 
@@ -249,7 +294,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.8.7] - 2026-04-19
 
 ### Fixed
-- Phase 18.5: handoff bug fixes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â listener argv rewrite via `poll.rs` (not a new subcommand), duplicate-check bypass via `OWL_HANDOFF_CHILD`, wrapper consumes inner-poll exit code 2 as a handoff defer signal.
+- Phase 18.5: handoff bug fixes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â listener argv rewrite via `poll.rs` (not a new subcommand), duplicate-check bypass via `OWL_HANDOFF_CHILD`, wrapper consumes inner-poll exit code 2 as a handoff defer signal.
 - `spawn_and_wait_inherit_stdio` extended with env overrides; handoff child/wrapper env constants added.
 
 ## [1.8.6] - 2026-04-19
@@ -284,7 +329,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.8.1] - 2026-04-18
 
 ### Added
-- Phase 18.2 (Spacetime Reliability & DX): security threat verification artifact (13/13 closed); UAT ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 8 passed, 0 issues.
+- Phase 18.2 (Spacetime Reliability & DX): security threat verification artifact (13/13 closed); UAT ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 8 passed, 0 issues.
 
 ## [1.8.0] - 2026-04-18
 
@@ -303,7 +348,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ## [1.7.4] - 2026-04-18
 
 ### Added
-- `-Bump` flag on `DEPLOY.ps1` (quick-260416-vbf) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â single-step plugin.json + Cargo.toml version bump with atomic commit.
+- `-Bump` flag on `DEPLOY.ps1` (quick-260416-vbf) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â single-step plugin.json + Cargo.toml version bump with atomic commit.
 
 ### Fixed
 - Wrapper loop tolerates empty poll stdout (defensive backstop); stop poll subprocess being killed at 5min by the host job-object on Windows (quick-260416-aaa).
@@ -327,7 +372,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ### Changed
 - Phase 18.1: deferred delivery flag; TCP spool timeout (D-09); orphan detection via `parent_pid` (D-08); `PULSE_TRIGGER` 3-tier recovery; psyche tool restrictions + marker protocol; echo-commune mechanism (D-07).
 - Removed `env-setup` skill and subcommand.
-- Renamed `STASH_FINAL` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `INIT_SIGNOFF` across codebase.
+- Renamed `STASH_FINAL` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `INIT_SIGNOFF` across codebase.
 
 ### Fixed
 - Poll-loop spool drain-respool race vs hook; removed subagent idle-ready clearing on parent perch (quick-260414-4dl).

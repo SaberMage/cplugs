@@ -4,6 +4,20 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.21] - 2026-05-20
+
+First version authored under the new four-bucket discipline (Added / Changed / Fixed / BTS). BTS content is for recordkeeping only and is filtered out of the version-change prompt surfacing.
+
+### Changed
+- **Update prompt now hides internal-only changes.** When you say "Yes, full changelog" or "Yes, highlights only" at the post-update prompt, behind-the-scenes work (repo plumbing, refactors, test-only changes, deploy mechanics, commit reverts) no longer appears — you only see what actually changed about how SPT looks, runs, or behaves.
+
+### BTS
+- Added a `### Bucket discipline for stub fill-in` subsection to `docs/DEPLOY.md` defining the four buckets and the UX-language rule for stub authors.
+- Reworded the resolved-branch AUQ `<instructions>` in `src/owl/version_changelog.rs` so both "Yes, full changelog" and "Yes, highlights only" instruct the rendering session to OMIT `### BTS` sections. Raw-string delimiter escalated to `r####"..."####` to embed `### BTS` literals safely.
+- Pinned `### BTS` + `behind-the-scenes` invariants in `tests/version_changelog.rs::block_reason_matches_reference_invariants`; dropped the now-stale "Pick 2-5 most impactful" assertion in the inline resolved-branch test.
+- Added `branch` field to `project_history` entries in Phase 24.1 planning docs.
+- Pre-v1.10.21 CHANGELOG entries left as-is; the BTS-skip filter is a no-op on entries without a `### BTS` section.
+
 ## [1.10.20] - 2026-05-20
 
 ### Fixed

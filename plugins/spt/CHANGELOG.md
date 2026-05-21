@@ -4,6 +4,11 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.24] - 2026-05-21
+
+### Fixed
+- **Psyche pulses no longer waste context on chunk reassembly.** When the wrapper polled the Psyche perch for a long message, it was receiving the same `<EVENT-PART>` chunks meant for the live-agent's terminal stream — forcing the Psyche session to spend tokens stitching them back together for zero benefit (its input pipe has no per-notification cap). Long messages now arrive at the Psyche as a single envelope; live-agent terminal delivery still chunks as before.
+
 ## [1.10.23] - 2026-05-21
 
 ### Added

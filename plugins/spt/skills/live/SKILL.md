@@ -217,7 +217,7 @@ The same synthesis path is used regardless of trigger (Phase 33 D-02 — FRESH-0
 **Handling the response**:
 
 - **"Proceed to init"** with no native-Other free-text addition: run `$LIVE start <id>` (or, if Step 1 already ran, proceed in-flow). The first commune is the synthesized summary itself, delivered by the natural state of the agent.
-- **"Proceed to init"** with native-Other free-text addition: append the user's free-text to the summary, then run `$LIVE start <id>`, then deliver the augmented summary as the first commune via `$OWL deliver <id> <<'EOF' ... EOF` (or `$LIVE commune <id>` from within the agent's session) after start succeeds.
+- **"Proceed to init"** with native-Other free-text addition: append the user's free-text to the summary, then run `$LIVE start <id>`, then — after start succeeds — use the **Write tool** to create `.claude/<id>-commune.md` with the augmented summary as its body. This is the canonical first-commune path (see `/spt:commune`): Self's listener polls for the file, the Psyche wrapper composes the v1.8 EVENT envelope, and the file is deleted on successful ingest.
 - **Cancel** (no option chosen): exit silently — matches the existing `kind:"prompt-new"` cancel semantics; do not re-prompt.
 
 ### Drift detection (Phase 23 v1.8)

@@ -4,6 +4,24 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.23] - 2026-05-21
+
+### Added
+- **Per-agent activity index that survives across sessions.** Each tracked agent now has its own `info.json` at `%LOCALAPPDATA%\spt\psyches\tracked\agents\<id>\info.json` recording when it last ran, on which machine, and in which project — so `$LIVE doctor` and future cross-session lookups can answer "where did I leave off?" without crawling per-perch state. The file is updated on boot, commune, and signoff.
+- **`$LIVE doctor` shows per-agent activity sub-lines.** Under each tracked-agent row, two indented lines now report `last_started=…, last_machine=…, last_project=…` and the on-disk `path=…info.json`, so a glance at the doctor output tells you which agents are stale vs. fresh and where their state lives.
+- **Project history rows now carry a `branch` field.** Each `project_history` entry on both perch-side and tracked-side records `{name, branch, first_seen, last_seen}` instead of just a project name, so the history captures which git branch the agent was on when it touched a repo.
+- **Legacy agents are auto-migrated, idempotently.** Pre-existing agents that pre-date the tracked-agents index get their `info.json` synthesized on first boot under the new binary. Re-running boot is a no-op — the file is not rewritten if already present.
+
+### Changed
+- **`$OWL list` and `$LIVE list` default to a terse one-line-per-agent rollup.** Output now shows `ACTIVE:{id}` / `OFFLINE:{id}` for owls and `LIVE:{id}` / `OFFLINE:{id}` for live agents. Pass `--verbose` to restore the previous full dump (pending count + `info.json` body + stale suffix), byte-identical to prior output.
+
+### BTS
+- New crate-wide `src/common/time.rs::now_iso_utc()` RFC-3339 UTC timestamp helper; promoted `src/common/git.rs::hostname()` to `pub(crate)` and added `head_branch_or_empty(cwd)` for cross-module identity and branch resolution.
+- `InfoJson.project_history` ships with a legacy-compatible deserializer accepting both `Vec<String>` and `Vec<ProjectHistoryEntry>` shapes; mixed-shape inputs are normalized via a two-pass `retain_mut` dedup so a legacy file carrying both String and Object forms for the same project collapses to a single Object (Plan 24.1-05 Rule 1 hardening of `normalize_legacy_strings_to_objects`).
+- 5 production `bump_tracked_agent_info` call sites wired across `src/owl/poll.rs`, `src/live/start.rs`, `src/live/wrapper/claude.rs`, `src/owl/echo_commune.rs`, `src/live/signoff.rs`; commit-funnel amendment also wired in `src/live/context.rs` (`run_save` + `run_amend_signoff`) and `src/live/fork.rs`. Each write is guarded by pre/post `Value` byte-equality so identical-payload bumps are short-circuited.
+- 33 new lib tests added across the phase (foundation primitives, owlery helpers, migrate synthesis, doctor sub-lines, mixed-shape dedup); full lib suite 703 passed / 0 failed / 3 ignored.
+- Phase 24.1 (tracked-dir / forked-repo layout follow-up to Phase 24) closed under this version.
+
 ## [1.10.22] - 2026-05-20
 
 ### Fixed

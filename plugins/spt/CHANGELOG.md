@@ -4,6 +4,17 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.22] - 2026-05-20
+
+### Fixed
+- **Subagent spawn no longer wakes your live-agent stream.** When a subagent created its working perch, the `[WORKING_PERCH_NOTICE]` was leaking through to the active listener as a real-time message — interrupting the agent's idle posture for a non-actionable notice. The notice is now suppressed on the stream as originally intended; it still arrives through the hook channel where it belongs.
+
+### BTS
+- Three of four spool-drain sites in `src/owl/poll.rs` still called unfiltered `drain_all`/`drain_all_with_metadata` (startup, 5-min timeout, idle-mode TCP-wake), letting deferred rows leak whenever real traffic or the D-09 timeout fired. All three swapped to deferred-skipped variants; new helper `spool::drain_non_deferred_with_metadata` introduced.
+- Added a belt-and-suspenders hard-gate in `emit_event_line` that drops informational bodies (`is_informational(body)`) from non-self senders, so any future regression that reintroduces an unfiltered drain still cannot leak info bodies as `<EVENT type="msg">` on stdout. Self-originated alarms and typed envelopes bypass the gate.
+- Two regression tests added in `src/common/spool.rs` covering the new deferred-skipped drain helper.
+- Debug session archived to `.planning/debug/resolved/working-perch-notice-priority-leak.md`. Closes the regression tracked in the project memory doc.
+
 ## [1.10.21] - 2026-05-20
 
 First version authored under the new four-bucket discipline (Added / Changed / Fixed / BTS). BTS content is for recordkeeping only and is filtered out of the version-change prompt surfacing.

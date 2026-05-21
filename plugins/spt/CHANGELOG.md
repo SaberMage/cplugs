@@ -4,14 +4,51 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.17] - 2026-05-20
+
+Quick task 260520-pzs: poll-listener events get truncated by Claude Code Monitor
+tool at 500 chars per notification block. Fix via `<EVENT-PART>` chunking emitted
+when wire-line exceeds threshold; receiver reassembles by `id` + `seq` and applies
+existing `<br>`/HTML-entity decode rules to the joined body.
+
+### Added
+- `src/owl/poll.rs::chunk_if_oversized` and `EVENT_LINE_THRESHOLD = 400` const —
+  any emitted wire line over the threshold splits into N
+  `<EVENT-PART seq="K/M" id="<8hex>" ...>` lines. First part carries full attrs
+  (type / from / timestamp / note); continuation parts carry only `seq` + `id`.
+  Chunk boundaries use `char_indices` for UTF-8 safety. Applies uniformly across
+  the regular-msg, alarm, and typed-envelope (`echo_commune` / `file_drop` /
+  `init_signoff`) emit branches.
+- 4 unit tests in `src/owl/poll.rs` — short body unchanged single `<EVENT>`,
+  long body N `<EVENT-PART>` chunks, typed-envelope long body chunks correctly,
+  UTF-8 boundary safety on chunk split.
+- `plugin/spt/skills/listen/SKILL.md` and `src/owl/resume.rs`
+  spacetime-reorientation block — added `<EVENT-PART>` reassembly contract:
+  buffer by `id`, concatenate `seq=1..M` in order, then decode; drop orphan
+  parts (`seq=K/M` with no prior `seq=1/M`) with a single stderr warning.
+
+### Validated
+- M0 empirical measurement (`.planning/quick/260520-pzs-*/260520-pzs-M0-FINDINGS.md`)
+  pinned cap at exactly 500 wire chars per Monitor notification (envelope + body
+  inclusive). Two probes with varying `from` attr length both truncated at 500.
+  Threshold = 400 leaves 100-char (20%) headroom.
+
+### Backward compat
+- Bodies under threshold emit byte-identical `<EVENT>` lines as before. All five
+  existing envelope shapes (`msg`, `alarm`, `echo_commune`, `file_drop`,
+  `init_signoff`) preserved when short. Bash `--once` fallback emits same wire
+  format (chunked or not) — `--once` remains a pure exit gate.
+
 ## [1.10.16] - 2026-05-20
 
-Phase 24 (v1.8 Psyche Restructure): forked-repo layout under `psyches/tracked/` —
+## [1.10.16] - 2026-05-20
+
+Phase 24 (v1.8 Psyche Restructure): forked-repo layout under `psyches/tracked/` â€”
 bare seed + per-agent + per-project worktrees; per-fire commits carry the Phase 23
 Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-rollover.
 
 ### Added
-- `src/common/tracked.rs` — bare-seed lifecycle (`ensure_seed`), lazy worktree
+- `src/common/tracked.rs` â€” bare-seed lifecycle (`ensure_seed`), lazy worktree
   creation (`ensure_agent_worktree` / `ensure_project_worktree`), write-path
   pipeline (`commit_payload` / `commit_agent_payload` /
   `commit_agent_payload_with_timeout`), sessions log writer
@@ -19,18 +56,18 @@ Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-
   (`seal_and_rotate_sessions_log`), migration (`migrate_legacy_if_needed`),
   doctor data-source (`doctor_status_rows`).
 - `src/common/git.rs::Stamp::commit_trailers(scope)` + `TrailerScope { Agent,
-  Project }` — renders the Phase 23 5-field stamp as a `\n`-joined `Key: value`
+  Project }` â€” renders the Phase 23 5-field stamp as a `\n`-joined `Key: value`
   trailer block; agent scope = 5 trailers (Machine / Project / Branch / Head-SHA
-  / Head-Subject), project scope = 4 (Project omitted — implied by path).
+  / Head-Subject), project scope = 4 (Project omitted â€” implied by path).
   Folds [SEED-004](.planning/seeds/SEED-004-stamp-params-in-psyche-commit-messages.md).
-- `src/common/wrapper_state.rs` — non-destructive `read_wrapper_state(agent_id)`
+- `src/common/wrapper_state.rs` â€” non-destructive `read_wrapper_state(agent_id)`
   reader + persistent `write_wrapper_state(agent_id, &state)` writer (sibling to
   the existing destructive `load_and_delete`). Powers external emitters'
   `session_uuid` source for sessions-log boot/signoff rows.
 - Path helpers in `src/common/owlery.rs`: `tracked_root`, `seed_path`,
   `agent_worktree_path`, `project_worktree_path`, `agent_branch`, `project_branch`.
 - `$LIVE doctor` per-worktree status surface: emits
-  `[PASS|WARN|FAIL] tracked:{scope}:{name} → {branch} → {state}` rows; reports
+  `[PASS|WARN|FAIL] tracked:{scope}:{name} â†’ {branch} â†’ {state}` rows; reports
   orphan worktree metadata; `--fix` runs `git worktree prune --expire=now`.
 - Sessions audit log `agents/{id}/sessions.log` (JSONL, 3 locked-order fields:
   `ts`, `session_uuid`, `trigger`). Triggers: `boot`, `pulse`, `commune`,
@@ -38,13 +75,13 @@ Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-
   generation; repeated fires update `ts` in place.
 
 ### Changed
-- `psyches/tracked/{id}.{log,md,xml}` → `psyches/tracked/agents/{id}/{daemon.log,live_context.md,memformat.xml}`
+- `psyches/tracked/{id}.{log,md,xml}` â†’ `psyches/tracked/agents/{id}/{daemon.log,live_context.md,memformat.xml}`
   (file renames per SC4-5).
 - Every commune/signoff/echo/memformat write produces a git commit on the agent
   branch `a-{id}` with subject
-  `{kind}: {self_id} {payload-type} — {short}` (D-07) plus the 5-line Stamp
+  `{kind}: {self_id} {payload-type} â€” {short}` (D-07) plus the 5-line Stamp
   trailer block (D-08).
-- `src/live/context.rs::git_commit_context` retired to a no-op shim — replaced
+- `src/live/context.rs::git_commit_context` retired to a no-op shim â€” replaced
   by `tracked::commit_agent_payload`.
 - Wrapper resume + 24h-refresh paths in `src/live/wrapper/claude.rs` +
   `src/live/wrapper/mod.rs` emit `pulse` (or `boot` for fresh sessions) sessions
@@ -59,7 +96,7 @@ Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-
   structure on first boot of v1.8. Stderr summary line:
   `migrated N agents to forked layout`. Idempotent + handoff-race tolerant
   (orphan-recovery pass on every `ensure_seed` call).
-- Phase 23 era `psyches/tracked/.git/` (if present) is left in place untouched —
+- Phase 23 era `psyches/tracked/.git/` (if present) is left in place untouched â€”
   forensic resource only; no longer written to.
 
 ### Deferred to Phase 25
@@ -68,7 +105,7 @@ Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-
   (`ensure_project_worktree_creates_p_prefix_branch`), but **no caller invokes
   it in v1.8**. The first observable lazy-creation event lands in Phase 25 when
   the project-scoped write path is wired. Operators upgrading to v1.8 will not
-  see `projects/{name}/` directories appear on disk yet — this is expected and
+  see `projects/{name}/` directories appear on disk yet â€” this is expected and
   not a bug.
 
 ### Deferred to Phase 35
@@ -83,7 +120,7 @@ project root and HEAD SHA so resumed agents can detect repo drift since
 their last session.
 
 ### Added
-- `src/common/git.rs` — `Stamp { machine, project, branch?, head_sha?, head_subject? }`
+- `src/common/git.rs` â€” `Stamp { machine, project, branch?, head_sha?, head_subject? }`
   produced by `stamp()`; every git subprocess bounded by a 500ms soft
   timeout (timeouts/git-missing yield `None` with one-line rate-limited
   warning). `Stamp::event_attrs()` renders EVENT-envelope attrs;
@@ -91,7 +128,7 @@ their last session.
   Helpers `commits_since(stored_sha)` and `commits_unpulled()` via
   `git rev-list --count`. Hostname via `$COMPUTERNAME`/`$HOSTNAME` with
   `hostname` CLI fallback.
-- `$LIVE suppress-drift` subcommand — writes per-(self_id, project)
+- `$LIVE suppress-drift` subcommand â€” writes per-(self_id, project)
   marker at `$SPT_HOME/suppressions/{self_id}__{project}.marker` so the
   drift directive is silenced for the chosen agent+project pair.
 - `psyche-download` payload emits `<psyche-stamp/>` (when stored) and
@@ -135,7 +172,7 @@ their last session.
 - Skill manifests for `/spt:context-save`, `/spt:psyche-download`, and
   `/spt:reboot` deleted from the user-facing surface. Underlying binary
   subcommands (`$LIVE context-save`, `$LIVE psyche-download`, `$OWL reboot`)
-  remain reachable â€” they are internal to Psyche wrapper, SessionStart hook,
+  remain reachable Ã¢â‚¬â€ they are internal to Psyche wrapper, SessionStart hook,
   and listener reboot flows, not user-invoked slash commands.
 
 ### Fixed
@@ -152,7 +189,7 @@ their last session.
   matches "Yes, full changelog" rendering semantics.
 - Version-change owl messages now classify as `info` priority (was
   `high`). They no longer surface the "STOP your current task" HIGHEST
-  PRIORITY banner â€” they ride the existing informational spool-drain
+  PRIORITY banner Ã¢â‚¬â€ they ride the existing informational spool-drain
   channel.
 
 ### Changed
@@ -161,7 +198,7 @@ their last session.
   when the new version's CHANGELOG entry is absent. The user fills the
   curated body and commits as `docs(NN): fill vX.Y.Z CHANGELOG entry`;
   the next `-Bump` proceeds. Bump commit no longer carries `CHANGELOG.md`
-  â€” it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
+  Ã¢â‚¬â€ it stages `plugin.json` + `Cargo.toml` only. Cache always ships a
   curated entry for the released version.
 
 ## [1.10.12] - 2026-05-17
@@ -174,7 +211,7 @@ their last session.
 
 ### Changed
 - AskUserQuestion for version-change updates reduced from 4 options to 3.
-  "Remind me later" removed â€” it rolled the sentinel back, causing the
+  "Remind me later" removed Ã¢â‚¬â€ it rolled the sentinel back, causing the
   next Stop hook to re-fire immediately (infinite-loop pathology
   confirmed during Phase 34 UAT).
 - `owl version-remind <old>` subcommand hidden from `--help`. Still
@@ -190,7 +227,7 @@ their last session.
   1.1.0) for step-count + date metadata. First install / malformed
   sentinel paths stay silent and silently rewrite the sentinel.
 - `owl version-remind <old>` subcommand for the AUQ's "Remind me later"
-  option â€” atomic sentinel rollback for next-Stop re-fire.
+  option Ã¢â‚¬â€ atomic sentinel rollback for next-Stop re-fire.
 
 ## [1.10.10] - 2026-05-16
 
@@ -235,12 +272,12 @@ their last session.
 ## [1.10.3] - 2026-05-14
 
 ### Changed
-- Skill descriptions use guillemets (`ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â« spt event ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»`) for the description chip ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â consistent visual marker across listener/revive surfaces.
+- Skill descriptions use guillemets (`ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â« spt event ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â»`) for the description chip ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â consistent visual marker across listener/revive surfaces.
 
 ## [1.10.2] - 2026-05-14
 
 ### Changed
-- Renamed `[INCOMING OWL]` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `<< spt event >>` in listener skill descriptions.
+- Renamed `[INCOMING OWL]` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `<< spt event >>` in listener skill descriptions.
 
 ## [1.10.1] - 2026-05-14
 
@@ -273,7 +310,7 @@ their last session.
 ## [1.9.13] - 2026-05-13
 
 ### Fixed
-- Psyche-wrapper inner poll now receives TCP wake by passing `--once` to the inner `owl poll` subprocess; collapses commune ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ psyche.md latency from the pulse-cadence bound (~20min) to sub-second.
+- Psyche-wrapper inner poll now receives TCP wake by passing `--once` to the inner `owl poll` subprocess; collapses commune ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ psyche.md latency from the pulse-cadence bound (~20min) to sub-second.
 
 ## [1.9.12] - 2026-05-13
 
@@ -300,8 +337,8 @@ their last session.
 ## [1.9.8] - 2026-05-10
 
 ### Added
-- `$LIVE pick-spec` subcommand (Phase 26-03) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â emits structured pick-spec JSON for `/spt:live` to interpret.
-- `$LIVE fork <src> <new_id>` primitive (Phase 26-04) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â copies an existing live agent's identity to a new ID with collision rejection.
+- `$LIVE pick-spec` subcommand (Phase 26-03) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â emits structured pick-spec JSON for `/spt:live` to interpret.
+- `$LIVE fork <src> <new_id>` primitive (Phase 26-04) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â copies an existing live agent's identity to a new ID with collision rejection.
 - Phase 26-02 activity bumps: cwd populated uniformly at every `InfoJson::new` site.
 
 ### Changed
@@ -329,13 +366,13 @@ their last session.
 ## [1.9.2] - 2026-04-21
 
 ### Added
-- Phase 18.8: full rewrite of echo-commune ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â stderr capture, fresh `claude` session, jsonl excerpt extraction. Eliminates the Self-jsonl write-contention class and surfaces previously-silent subprocess failures.
+- Phase 18.8: full rewrite of echo-commune ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â stderr capture, fresh `claude` session, jsonl excerpt extraction. Eliminates the Self-jsonl write-contention class and surfaces previously-silent subprocess failures.
 - `common::owlery` cursor helpers (`now_secs`, `write_last_commune_epoch`).
-- Phase 18.7: listener-owned timed-alarm firing (renamed `/spt:timed-pulse` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `/spt:new-alarm`). Scheduler bumps a wake sentinel after persist; wrapper compose_passive_context filters to `epoch > now`.
+- Phase 18.7: listener-owned timed-alarm firing (renamed `/spt:timed-pulse` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `/spt:new-alarm`). Scheduler bumps a wake sentinel after persist; wrapper compose_passive_context filters to `epoch > now`.
 - Phase 18.7.1 hotfix: mid-iteration alarm-fire regression closed (F3 spool-direct write, F4 SPT_TRACE gating, F5 panic-logging, cache-mtime guard fix).
 
 ### Removed
-- `src/live/timed_pulse.rs`, `wrapper/scheduler.rs`, `reload_timed_pulses`, `TimedPulseOutcome` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â wrapper is now read-only over pulse state.
+- `src/live/timed_pulse.rs`, `wrapper/scheduler.rs`, `reload_timed_pulses`, `TimedPulseOutcome` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â wrapper is now read-only over pulse state.
 
 ## [1.8.11] - 2026-04-20
 
@@ -366,7 +403,7 @@ their last session.
 ## [1.8.7] - 2026-04-19
 
 ### Fixed
-- Phase 18.5: handoff bug fixes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â listener argv rewrite via `poll.rs` (not a new subcommand), duplicate-check bypass via `OWL_HANDOFF_CHILD`, wrapper consumes inner-poll exit code 2 as a handoff defer signal.
+- Phase 18.5: handoff bug fixes ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â listener argv rewrite via `poll.rs` (not a new subcommand), duplicate-check bypass via `OWL_HANDOFF_CHILD`, wrapper consumes inner-poll exit code 2 as a handoff defer signal.
 - `spawn_and_wait_inherit_stdio` extended with env overrides; handoff child/wrapper env constants added.
 
 ## [1.8.6] - 2026-04-19
@@ -401,7 +438,7 @@ their last session.
 ## [1.8.1] - 2026-04-18
 
 ### Added
-- Phase 18.2 (Spacetime Reliability & DX): security threat verification artifact (13/13 closed); UAT ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 8 passed, 0 issues.
+- Phase 18.2 (Spacetime Reliability & DX): security threat verification artifact (13/13 closed); UAT ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â 8 passed, 0 issues.
 
 ## [1.8.0] - 2026-04-18
 
@@ -420,7 +457,7 @@ their last session.
 ## [1.7.4] - 2026-04-18
 
 ### Added
-- `-Bump` flag on `DEPLOY.ps1` (quick-260416-vbf) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â single-step plugin.json + Cargo.toml version bump with atomic commit.
+- `-Bump` flag on `DEPLOY.ps1` (quick-260416-vbf) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â single-step plugin.json + Cargo.toml version bump with atomic commit.
 
 ### Fixed
 - Wrapper loop tolerates empty poll stdout (defensive backstop); stop poll subprocess being killed at 5min by the host job-object on Windows (quick-260416-aaa).
@@ -444,7 +481,7 @@ their last session.
 ### Changed
 - Phase 18.1: deferred delivery flag; TCP spool timeout (D-09); orphan detection via `parent_pid` (D-08); `PULSE_TRIGGER` 3-tier recovery; psyche tool restrictions + marker protocol; echo-commune mechanism (D-07).
 - Removed `env-setup` skill and subcommand.
-- Renamed `STASH_FINAL` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `INIT_SIGNOFF` across codebase.
+- Renamed `STASH_FINAL` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `INIT_SIGNOFF` across codebase.
 
 ### Fixed
 - Poll-loop spool drain-respool race vs hook; removed subagent idle-ready clearing on parent perch (quick-260414-4dl).

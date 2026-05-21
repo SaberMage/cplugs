@@ -4,6 +4,11 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.25] - 2026-05-21
+
+### Removed
+- **`$LIVE context-save` subcommand removed.** Saving the Psyche's context is now done exclusively by the Psyche LLM itself (it writes `live_context.md` directly via the Write tool on its own cadence — first invocation, INIT_SIGNOFF, and during context-save events). The operator-callable shortcut was a footgun: a smoke-test invocation such as `$LIVE context-save doyle "ping"` would overwrite a rich, hard-earned context with a 228-byte stub. The live-agent skill banner no longer advertises the command. If you previously scripted `$LIVE context-save`, the call now fails with `unrecognized subcommand`; let the Psyche save its own context. See `.planning/debug/doyle-fresh-ctx-after-v1-10-16.md` for the incident that motivated removal.
+
 ## [1.10.24] - 2026-05-21
 
 ### Fixed

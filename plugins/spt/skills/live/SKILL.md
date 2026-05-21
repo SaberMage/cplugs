@@ -222,7 +222,7 @@ The same synthesis path is used regardless of trigger (Phase 33 D-02 — FRESH-0
 
 ### Drift detection (Phase 23 v1.8)
 
-As of v1.8 Phase 23, `$LIVE psyche-download <id>` may emit a `<psyche-stamp/>` block (the 5-field stamp captured at last context-save) and ALWAYS emits a `<current/>` block (live stamp values plus `commits_since` and `commits_unpulled` deltas). When `<current project>` equals `<psyche-stamp project>` AND any of `branch` / `head_sha` / `machine` differ, an HTML-comment ATTENTION SELF directive is appended instructing you to fire `AskUserQuestion`.
+As of v1.8 Phase 23, `$LIVE psyche-download <id>` may emit a `<psyche-stamp/>` block (the 5-field stamp captured at the last live_context.md write) and ALWAYS emits a `<current/>` block (live stamp values plus `commits_since` and `commits_unpulled` deltas). When `<current project>` equals `<psyche-stamp project>` AND any of `branch` / `head_sha` / `machine` differ, an HTML-comment ATTENTION SELF directive is appended instructing you to fire `AskUserQuestion`.
 
 The exact directive text emitted (quote it verbatim when matching — this is the locked `SAME_PROJECT_DRIFT_DIRECTIVE` from `src/live/context.rs`):
 

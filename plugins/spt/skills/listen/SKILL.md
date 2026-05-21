@@ -141,7 +141,7 @@ Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delive
 ```
 - No `from` attribute -- signoff is self-originated (Phase 18.4 / quick-260513-v8f).
 - `timestamp` = ISO-8601 instant the signoff was emitted.
-- Body carries the signoff context (final context-save trigger for the Psyche wrapper).
+- Body carries the signoff context (final write-to-live_context.md trigger for the Psyche wrapper).
 
 **Chunked deliveries (EVENT-PART):**
 

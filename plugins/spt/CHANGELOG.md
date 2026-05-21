@@ -4,6 +4,78 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.16] - 2026-05-20
+
+Phase 24 (v1.8 Psyche Restructure): forked-repo layout under `psyches/tracked/` —
+bare seed + per-agent + per-project worktrees; per-fire commits carry the Phase 23
+Stamp as commit-message trailers; per-agent sessions audit log with truncate-on-rollover.
+
+### Added
+- `src/common/tracked.rs` — bare-seed lifecycle (`ensure_seed`), lazy worktree
+  creation (`ensure_agent_worktree` / `ensure_project_worktree`), write-path
+  pipeline (`commit_payload` / `commit_agent_payload` /
+  `commit_agent_payload_with_timeout`), sessions log writer
+  (`append_session_entry` with D-18 dedup contract), generation seal-on-rollover
+  (`seal_and_rotate_sessions_log`), migration (`migrate_legacy_if_needed`),
+  doctor data-source (`doctor_status_rows`).
+- `src/common/git.rs::Stamp::commit_trailers(scope)` + `TrailerScope { Agent,
+  Project }` — renders the Phase 23 5-field stamp as a `\n`-joined `Key: value`
+  trailer block; agent scope = 5 trailers (Machine / Project / Branch / Head-SHA
+  / Head-Subject), project scope = 4 (Project omitted — implied by path).
+  Folds [SEED-004](.planning/seeds/SEED-004-stamp-params-in-psyche-commit-messages.md).
+- `src/common/wrapper_state.rs` — non-destructive `read_wrapper_state(agent_id)`
+  reader + persistent `write_wrapper_state(agent_id, &state)` writer (sibling to
+  the existing destructive `load_and_delete`). Powers external emitters'
+  `session_uuid` source for sessions-log boot/signoff rows.
+- Path helpers in `src/common/owlery.rs`: `tracked_root`, `seed_path`,
+  `agent_worktree_path`, `project_worktree_path`, `agent_branch`, `project_branch`.
+- `$LIVE doctor` per-worktree status surface: emits
+  `[PASS|WARN|FAIL] tracked:{scope}:{name} → {branch} → {state}` rows; reports
+  orphan worktree metadata; `--fix` runs `git worktree prune --expire=now`.
+- Sessions audit log `agents/{id}/sessions.log` (JSONL, 3 locked-order fields:
+  `ts`, `session_uuid`, `trigger`). Triggers: `boot`, `pulse`, `commune`,
+  `signoff`. Dedup contract: one row per `(session_uuid, trigger)` pair per
+  generation; repeated fires update `ts` in place.
+
+### Changed
+- `psyches/tracked/{id}.{log,md,xml}` → `psyches/tracked/agents/{id}/{daemon.log,live_context.md,memformat.xml}`
+  (file renames per SC4-5).
+- Every commune/signoff/echo/memformat write produces a git commit on the agent
+  branch `a-{id}` with subject
+  `{kind}: {self_id} {payload-type} — {short}` (D-07) plus the 5-line Stamp
+  trailer block (D-08).
+- `src/live/context.rs::git_commit_context` retired to a no-op shim — replaced
+  by `tracked::commit_agent_payload`.
+- Wrapper resume + 24h-refresh paths in `src/live/wrapper/claude.rs` +
+  `src/live/wrapper/mod.rs` emit `pulse` (or `boot` for fresh sessions) sessions
+  log rows on every cycle.
+- Migration commits use the 2000ms extended timeout
+  (`commit_agent_payload_with_timeout`); standard pulse / commune / signoff
+  writers keep the 500ms Phase 23 D-13 budget.
+
+### Migrated
+- Existing flat-layout files (`tracked/{id}.log`, `tracked/{id}.md`,
+  `tracked/{id}-memformat.xml`) auto-migrate to the new agent worktree
+  structure on first boot of v1.8. Stderr summary line:
+  `migrated N agents to forked layout`. Idempotent + handoff-race tolerant
+  (orphan-recovery pass on every `ensure_seed` call).
+- Phase 23 era `psyches/tracked/.git/` (if present) is left in place untouched —
+  forensic resource only; no longer written to.
+
+### Deferred to Phase 25
+- **SC3 (project worktree lazy creation):** The `ensure_project_worktree(name)`
+  primitive ships in Phase 24 (Plan 24-02) with full unit-test coverage
+  (`ensure_project_worktree_creates_p_prefix_branch`), but **no caller invokes
+  it in v1.8**. The first observable lazy-creation event lands in Phase 25 when
+  the project-scoped write path is wired. Operators upgrading to v1.8 will not
+  see `projects/{name}/` directories appear on disk yet — this is expected and
+  not a bug.
+
+### Deferred to Phase 35
+- `git push` step. Phase 24 commits land directly in `seed/.git/objects/` via
+  the shared worktree object DB (no push needed against the local bare). Phase
+  35 adds the GitHub remote + push.
+
 ## [1.10.15] - 2026-05-20
 
 Phase 23 (v1.8 Psyche Restructure): commune + signoff payloads now stamp

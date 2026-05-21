@@ -143,7 +143,30 @@ Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delive
 - `timestamp` = ISO-8601 instant the signoff was emitted.
 - Body carries the signoff context (final context-save trigger for the Psyche wrapper).
 
-**Body parsing rules (apply to ALL four envelopes):**
+**Chunked deliveries (EVENT-PART):**
+
+Bodies exceeding the per-event display cap (~500 chars on the Claude Code Monitor harness) arrive as **N consecutive lines** of shape:
+
+```
+<EVENT-PART seq="K/M" id="<8-hex-nonce>" [type="..." from="..." timestamp="..." note="..."]>chunk-of-body</EVENT-PART>
+```
+
+- `seq="K/M"` — 1-indexed sequence; K runs 1..M; M is the total part count.
+- `id="<8-hex-nonce>"` — short hex id (8 chars from `next_event_part_id` in `src/owl/poll.rs`) that groups parts of one logical event. Appears on EVERY part.
+- The original envelope attributes (`type`, `from`, `timestamp`, `note` — whichever applied to the un-chunked envelope) appear **ONLY on `seq="1/M"`**. Subsequent parts (K>1) carry only `seq` and `id` to save bytes.
+
+**Reassembly rules (REQUIRED — these are not suggestions):**
+
+1. Collect all parts sharing the same `id`. Order them by the numerator of `seq` (K). Verify the count of parts equals the denominator (M).
+2. Concatenate the chunk contents in seq order (K=1, K=2, …, K=M) to recover the **escaped** body.
+3. Apply the existing body parsing rules (split on `<br>`, then HTML-unescape `&lt;`/`&gt;`/`&quot;`/`&amp;` LAST) to the **reassembled** body — never to individual chunks. An escape sequence like `&amp;` may straddle a chunk boundary; the chunker does not align boundaries to escape edges.
+4. Then process the message as if it had arrived as a single `<EVENT type="<seq-1-type>" ...>reassembled-body</EVENT>` envelope (regular msg, alarm, echo_commune, file_drop, or init_signoff per the seq=1 `type` attribute).
+
+**Orphan-part rule:** If `seq="K/M"` arrives **without** a matching `seq="1/M"` carrying the same `id` (because earlier parts were lost across a session boundary, listener restart, or binary handoff), **drop the orphan parts silently**. Do NOT attempt partial delivery — a truncated body is worse than no body. Optionally surface a single stderr-side warning for diagnostics.
+
+**Adjacency assumption:** In Monitor stream mode all parts of one `id` are emitted in a single `println!` loop on the sender side with no thread sleep between them — they arrive within a few hundred ms. A receiver that has buffered some parts with the same `id` for ≥5 seconds without seeing all M can safely treat the missing parts as orphaned.
+
+**Body parsing rules (apply to ALL four envelopes AND to reassembled EVENT-PART bodies):**
 1. Split the body on the literal `<br>` token to recover newlines.
 2. HTML-unescape each fragment in this order: `&lt;` → `<`, then `&gt;` → `>`, then `&quot;` → `"`, then `&amp;` → `&` **last** (so embedded `&amp;lt;` sequences don't double-decode into `<`).
 

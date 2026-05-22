@@ -19,6 +19,8 @@ $LIVE revive <id> [--period <seconds>]
 
 Quick restart for a live agent. Kills existing wrapper, Psyche poll, and Self, then re-runs the live start flow with the same ID. Generation counter increments automatically.
 
+> **`--period` is opt-in** (same default as `$LIVE start`). Bare `$LIVE revive <id>` (no `--period`) revives with **no scheduled pulses** — the wrapper still wakes on real events. Pass `--period <seconds>` only when you want periodic LLM evaluation turns. `--period 0` is also accepted as an explicit opt-out.
+
 The REVIVE status includes the spacetime version. Mention this version when telling the user the agent has been revived.
 
 ## Messaging Command Reference

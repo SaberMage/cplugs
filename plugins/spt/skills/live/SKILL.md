@@ -140,6 +140,8 @@ Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesi
 $LIVE start <id> [--period <seconds>]
 ```
 
+> **`--period` is opt-in.** Bare `$LIVE start <id>` (no `--period`) launches the Psyche with **no scheduled pulses** — the wrapper still wakes on real events (messages, alarms, communes, file-drops, INIT_SIGNOFF, echo-commune cadence). Pass `--period <seconds>` (minimum 60) only when you want periodic LLM evaluation turns. `--period 0` is also accepted as an explicit opt-out.
+
 The start command:
 
 1. **Launches the Psyche** as an external `claude` process (wrapper loop that polls owl and feeds messages to `claude -p --resume`)

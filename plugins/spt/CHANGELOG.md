@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.10.26] - 2026-05-21
+
+### Changed
+- **`$LIVE start` no longer schedules a Psyche pulse by default.** Previously, `$LIVE start <id>` (no `--period`) ran the Psyche on a 1200-second (20-minute) pulse cadence, burning a Claude resume turn every 20 minutes whether or not the agent needed a nudge. The new default is **no scheduled pulse**: the wrapper still wakes on real events (messages, alarms, communes, file-drops, INIT_SIGNOFF, echo-commune cadence) — pulses just stop firing on a timer. Pulses are now opt-in via `$LIVE start <id> --period <seconds>` (or `--period 1200` to restore the prior 20-minute cadence). `$LIVE start <id> --period 0` is also accepted as an explicit no-pulse opt-in. `--period 1..=59` is still rejected with the new wording: `Minimum pulse period is 60 seconds (or 0 to disable)`. `$LIVE revive` follows the same default. Skill docs (`/spt:live`, `/spt:revive`) now describe pulses as opt-in.
+
+### BTS
+- Internal representation: `period: u64` with `0` as the no-pulse sentinel. `start::run` and `live_start_result` flip `period.unwrap_or(1200)` to `period.unwrap_or(0)`; minimum-60 guard relaxes to `period > 0 && period < 60` (allows 0, still rejects 1..=59). `WrapperState.poll_psyche` switches argv from a fixed `[&str; 7]` to a `Vec<&str>` and conditionally omits `--pulse-interval` when `period == 0` — NEVER passes literal `--pulse-interval 0`, which would cause `Instant::now() + Duration::from_secs(0)` to already be past and tight-loop `PULSE_TRIGGER` on every iteration. `build_agents_json` substitutes the full segment `{{period}} seconds` in `psyche.md` so the identity-block line reads `Pulse period: disabled (no scheduled pulses; event-driven wake only)` in opt-out mode. Two regression tests added in `tests/cli_parse.rs`. Source: `.planning/quick/260521-oyi-update-live-start-to-have-default-period/`.
+
 ## [1.10.25] - 2026-05-21
 
 ### Removed

@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.1] - 2026-05-22
+
+### Changed
+- **Commune / signoff / live / revive skill docs teach the Phase 25 two-slice envelope contract.** The Self-authored side (`/spt:commune`, `/spt:signoff`) now spells out that commune and FINAL-COMMUNE bodies must wrap content in `<live-context>` and (when in a tracked project) `<project-context>` slices. The receive side (`/spt:live` echo_commune catalog, `/spt:revive`) now explains that an `EVENT type="echo_commune"` brief carries those two slices and that both absorb as a single SessionStart resume brief. `commune.md` gains three worked examples covering the in-project-both / in-project-empty-project / outside-project branches; the Memformat Guide is reframed to decouple topic-content (what to think about) from envelope-routing (where it goes).
+
+### BTS
+- New deterministic, grep-able sentinel `<project-context-resolved name="..."/>` is emitted by `download_payload()` in `src/live/context.rs` (line 465) when a project context resolves, gated by all three guards (cwd_project + file exists + read success). Self agents can now detect in-project status from `$LIVE psyche-download` output without LLM-judgment heuristics, symmetric with the existing `<psyche-stamp/>` / `<current/>` markers. Two new unit tests cover the positive and negative branches; `live::context::tests` 56/56 pass. Source: `.planning/phases/25.1-revise-commune-signoff-skill-docs-echo-commune-instruction-t/`.
+
 ## [1.11.0] - 2026-05-21
 
 ### Added

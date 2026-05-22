@@ -82,4 +82,8 @@ Run with `run_in_background: true` and description `« spt event »`. Repeat aft
 
 After revive, message handling follows the same dual-path protocol: messages arrive via Monitor stream (primary) or Bash one-shot (fallback) when idle, or via PreToolUse hook injection (when busy). See `/spt:listen` for full details on EVENT envelope parsing.
 
+## Echo-commune brief (post-revive)
+
+A revive at SessionStart may immediately surface an `<EVENT type="echo_commune" from="<your-id>-psyche">` brief — the haiku-summary echo-commune fired by your Psyche wrapper as part of the resume cycle (Phase 29 AUTO-EC). The body is wrapped in the Phase 25 D-10/D-11 two-slice envelope (`<live-context>` plus optionally `<project-context>`); absorb both slices as one continuous resume brief (D-25.1-05). See `/spt:live` for the full echo_commune envelope catalog entry and `/spt:listen` for body-parsing rules.
+
 **Important:** While your perch is active, always launch Agent tool calls with `run_in_background: true`. Foreground agents block your poll loop -- no messages can be delivered until the agent finishes.

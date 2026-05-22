@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.3] - 2026-05-22
+
+### Fixed
+- **First-commune-in-project no longer silently routes project-bound work into the live slice.** The Psyche haiku's `CURRENT_PROJECT_CONTEXT` prompt block was being omitted entirely whenever the per-project context file did not yet exist on disk — which is always the case on a brand-new agent/project pairing. Combined with the haiku rule "omit `<project-context>` if no `CURRENT_PROJECT_CONTEXT` block in the prompt", this created a chicken-and-egg: the file never gets written because the haiku never emits the envelope, and the haiku never emits the envelope because the file does not exist. Now the prompt block is keyed on the cwd resolving to a project name, not on file existence — first-time-in-project pairings receive the block with a literal `(none — first commune in project)` body, the haiku emits `<project-context>` correctly, and the receiving side writes the per-project file. Subsequent communes inherit the populated file via the existing path. Mirrors the v1.11.2 Self-side detection-rule fix on the haiku side; closes the bootstrap loop end-to-end.
+
+### BTS
+- `src/owl/echo_commune.rs::build_current_context_blocks` now emits `CURRENT_PROJECT_CONTEXT` whenever `derive_current_repo_names().first()` resolves, regardless of whether `projects/<cwd_project>/<self_id>.md` exists; missing file renders as the literal `(none — first commune in project)`. Signoff inherits via the shared helper. `psyche.md` `<output_envelope>` rule 2, `<init_signoff>`, and `<context_save>` sections rewritten to teach that the first-commune literal counts as the block being PRESENT — emit both envelopes. `psyche.md` is `include_str!`'d into the binary, so the rebuild ships the new teaching automatically. Two pre-existing unit tests that asserted the buggy "omit-on-missing-file" behavior flipped to assert the new contract; 10/10 prompt tests, 70/70 echo_commune tests, 52/52 signoff tests pass. `Cargo.lock` owl crate version bumped from 1.11.1 → 1.11.2 (missed from the v1.11.2 deploy commit). Debug session `.planning/debug/sentinel-bootstrap-gap.md` archived to `resolved/`. Source: `.planning/quick/260522-9zk-haiku-bootstrap-fix-key-project-block-on-cwd/`.
+
 ## [1.11.2] - 2026-05-22
 
 ### Changed

@@ -4,6 +4,21 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.0] - 2026-05-21
+
+### Added
+- **Nested perch layout for Psyche and worker perches.** Psyche perches now live under `owlery/<agent>/nested/<agent>-psyche/` instead of as siblings of the Self perch. Worker perches similarly nest under `owlery/<agent>/nested/<agent>-w<N>/`. Legacy flat perches auto-relocate to the nested layout on first start under the new binary, so existing agents keep working without manual intervention. Stale legacy entries that can't be safely relocated (e.g., live pid in flat slot) are surfaced by `$OWL doctor` rather than silently overwritten.
+- **Project-aware Psyche context downloads and routing.** `$LIVE psyche-download` is now cwd-aware: when invoked inside a known project, it appends a `<project-context>` slice (sourced from Phase 24's forked-repo layout under `psyches/tracked/projects/<cwd_project>/`) on top of the cross-project `<live-context>` slice. Outside any known project, falls back to live-context only. Communes and signoffs route project-scoped payloads to per-project storage based on cwd, while cross-project entries continue to update the agent's general `live_context.md`.
+- **`$OWL doctor` surfaces nested-layout health.** New checks: duplicate detection when the same id appears at BOTH the legacy flat path AND the nested path (D-17); orphan-psyche detection for nested Psyche perches without a live parent (D-18); orphan-worker count (D-21); OFFLINE Self/Psyche perches with grace-window persistence (D-05). Doctor's output now reports per-perch parent/child relationships.
+- **Tree-shape rendering in `$OWL list` and `$LIVE list-psyches`.** The nested perch hierarchy is rendered visually: parent perch row, indented `└─` Psyche row, indented `├─`/`└─` worker rows. The terse one-line-per-agent rollup from v1.10.23 still applies at the top level.
+- **Two-slice envelope for haiku-model output.** The Psyche's haiku child model is now taught a `<live-context>` + `<project-context>` envelope so its commune/signoff output can be routed to the correct storage slice. The contract: omit `<project-context>` when the prompt had no project block, and merge (don't overwrite) on the receiving side. `psyche.md` is rebuilt into the binary via a new `build.rs` `cargo:rerun-if-changed=psyche.md` directive.
+
+### BTS
+- New foundation in `src/common/owlery.rs`: `nested_perch_dir(parent, child_id)` composes the nested path; `is_worker_perch_path` / `is_psyche_perch_path` are path-aware predicates that supersede the prior name-pattern checks; `enumerate_perches` is recursive (descends into `nested/` subdirs); `safe_to_remove` grace boundary is `>= grace` (Wave 2 deviation Rule 1). Plus `sweep_own_orphaned_workers` + `is_perch_online_at(&Path)` for per-perch liveness.
+- New module `src/common/envelope.rs` — `TwoSlicePayload` + `parse_two_slice` + `extract_tag` parser, consumed by `src/owl/echo_commune.rs::route_two_slice` (commune write path) and `src/live/signoff.rs::route_two_slice_signoff` (signoff write path; wired into `run()` and `signoff_result()`).
+- `src/live/start.rs` gains D-16 psyche relocate + nested-perch spawn; pre-relocate COLLISION check honors Pitfall #4 pid-dead precondition (Wave 2 deviation Rule 2). `src/live/signoff.rs` gains D-20 sweep call after signoff write. `src/owl/hook_subagent_start.rs` migrates SubagentStart-hook worker spawn to the nested layout (B1).
+- 4 new integration tests: `tests/handoff_integration.rs::{nested_psyche_layout, psyche_relocate_on_start}`, `tests/native_owl.rs::{nested_worker_layout, sweep_own_orphaned_workers_e2e}`. Plus 21 new unit tests across owlery, envelope parser, haiku-prompt builders, and signoff prompt composers; full lib suite 768/769 pass (the 1 failure is a pre-existing debug-only test unrelated to this phase). Source: `.planning/phases/25-perch-nesting-psyche-workers-wire-psyche-download-to-forked-/`.
+
 ## [1.10.26] - 2026-05-21
 
 ### Changed

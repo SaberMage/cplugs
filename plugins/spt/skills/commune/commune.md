@@ -18,7 +18,7 @@ Every non-empty commune body wraps content in two nested-XML envelopes per Phase
 2. **In-project, only role/agent state changed this cycle** -- emit `<live-context>...</live-context>` + `<project-context></project-context>` (empty project body). The empty body is the deliberate "in-project but quiet" signal (D-25.1-02) -- it tells Psyche the project context did not advance this cycle, distinguishable from "no project resolved".
 3. **Outside any tracked project** -- emit ONLY `<live-context>...</live-context>`. Do NOT emit an empty `<project-context>` envelope. The MISSING tag is the "no project resolved" signal (D-25.1-03) -- semantically different from an empty body.
 
-**In-project detection rule (D-25.1-04).** Before composing your commune body, run `$LIVE psyche-download <your_id>` and grep the output for the literal substring `<project-context-resolved`. Marker present → you are inside a tracked project (apply rule 1 or 2). Marker absent → you are outside any tracked project (apply rule 3). This is a hard deterministic check -- no LLM judgment needed.
+**In-project detection rule (D-25.1-04).** Before composing your commune body, run `$LIVE psyche-download <your_id>` and inspect the `<current ... />` tag at the top of the output. The `<current/>` tag carries a `project="..."` attribute whenever any payload is produced — inside a git repo `project` is the repo name; outside a git repo per D-11 `project` is the cwd-basename fallback, which still counts as a project context for routing purposes. `project="..."` populated on `<current/>` → you are inside a tracked project (apply rule 1 or 2). A `psyche-download` invocation that returns no payload at all (NO-CONTEXT exit) → you are outside any tracked project (apply rule 3). The attribute is emitted unconditionally whenever any payload is produced, so this is a deterministic check. Secondary signal: the `<project-context-resolved name="..."/>` sentinel further down the output indicates the project file already has prior content — useful for spotting first-time-in-project pairings, but NOT the routing rule.
 
 **Nested envelopes.** The outer `<EVENT type="commune">` envelope is composed by the `$LIVE commune` runtime from your file body. You NEVER write `<EVENT>` tags in `.claude/{your_id}-commune.md`. You write ONLY the inner two-slice body. The two layers nest: outer EVENT wraps inner two-slice body.
 
@@ -99,7 +99,7 @@ the user. No new project work yet -- just orientation.
 <project-context></project-context>
 ```
 
-**Example 3 -- Outside any tracked project.** `$LIVE psyche-download` showed no `<project-context-resolved` marker, so emit ONLY the live slice. Do NOT include an empty `<project-context>` envelope -- the missing tag is the "no project resolved" signal (D-25.1-03).
+**Example 3 -- Outside any tracked project.** `$LIVE psyche-download` returned no payload (NO-CONTEXT exit — no `<current/>` tag, no `project="..."` attribute), so emit ONLY the live slice. Do NOT include an empty `<project-context>` envelope -- the missing tag is the "no project resolved" signal (D-25.1-03).
 
 ```
 <live-context>

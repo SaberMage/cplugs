@@ -4,6 +4,11 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.2] - 2026-05-22
+
+### Changed
+- **`/spt:commune` and `/spt:signoff` skill docs clarify the in-project detection rule.** The detection signal for "am I in a tracked project?" now keys on the `<current ... project="..."/>` tag's `project` attribute, which `$LIVE psyche-download` emits unconditionally whenever any payload is produced. The previous detection rule keyed on the `<project-context-resolved name="..."/>` sentinel, which fires only when the project's context file already has prior content — so first-time-in-project agents had no sentinel and routed project-bound work into `<live-context>` even though the project clearly resolved. The sentinel is now described as a secondary "project file has prior content" indicator. Three routing rules (D-25.1-01..03) and worked examples preserved; symmetric wording applied to `commune/SKILL.md`, `commune/commune.md`, and `signoff/SKILL.md`.
+
 ## [1.11.1] - 2026-05-22
 
 ### Changed

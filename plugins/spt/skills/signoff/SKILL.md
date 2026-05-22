@@ -56,8 +56,8 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 When the FINAL-COMMUNE body is non-empty (the second sub-bullet of Step 3 above), it follows the same Phase 25 D-10/D-11 two-slice envelope contract as a regular commune body:
 
-- **In a tracked project** (detected via `<project-context-resolved` marker in `$LIVE psyche-download` output): emit `<live-context>...</live-context>` plus either `<project-context>...</project-context>` (with content) or `<project-context></project-context>` (empty body — "in-project but quiet" signal per D-25.1-02).
-- **Outside any tracked project** (no marker in psyche-download output): emit ONLY `<live-context>...</live-context>`. Do NOT emit an empty `<project-context>` envelope.
+- **In a tracked project** (detected via the `project="..."` attribute on the `<current ... />` tag at the top of `$LIVE psyche-download` output): emit `<live-context>...</live-context>` plus either `<project-context>...</project-context>` (with content) or `<project-context></project-context>` (empty body — "in-project but quiet" signal per D-25.1-02).
+- **Outside any tracked project** (no payload at all from `psyche-download` — no `<current/>` tag, no `project="..."` attribute): emit ONLY `<live-context>...</live-context>`. Do NOT emit an empty `<project-context>` envelope.
 - **Plain signoff** (empty file body, first sub-bullet of Step 3): the two-slice contract does NOT apply — the file is literally empty.
 
 See `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` for the full teaching with three worked examples. See `psyche.md` §`<output_envelope>` for the canonical per-slice content taxonomy.

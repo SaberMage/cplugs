@@ -4,6 +4,24 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.4] - 2026-05-22
+
+### Fixed
+- **Pending signoffs no longer get silently eaten by `$LIVE start` or `$LIVE revive`.** A signoff body written while the agent was offline used to be printed to the terminal and then deleted, with no copy reaching the Psyche. Fresh signoffs are now forwarded to the Psyche as a "latent signoff" event, and the signoff file is removed only after the body is queued.
+- **`$LIVE revive` no longer drops boot rows on cold-start.** The wrapper-state read budget extended from 2 seconds to 20 seconds, matching the worst-case cold-start window. Routine warm-cache reads still resolve in well under a second; only slow boots benefit.
+- **Stale `index.lock` files no longer block sessions-log seal.** A crashed `git` process used to leave a 0-byte lock that wedged every subsequent commit for that agent. The next `$LIVE` boot now clears the abandoned lock automatically (any live `git` process is left alone).
+- **Wrapper poll loop now sees its own Psyche perch under the nested layout.** After v1.11.0 moved Psyche perches under `owlery/<agent>/nested/`, the wrapper was still looking at the old flat location and exiting its poll loop one iteration in. The wrapper now resolves the correct nested location, falling back to the flat location for legacy agents that have not relocated yet.
+- **`git -C <tracked-root> status` no longer reports ghost-repo noise.** A leftover `tracked/.git/` directory from earlier deploy layouts is now cleaned up the next time the binary starts. Idempotent — once gone, stays gone.
+
+### BTS
+- Wrapper-state retry budget unified across boot and signoff trigger paths through a single shared helper + const (`WRAPPER_STATE_MAX_ATTEMPTS = 80`); every successful read emits an elapsed-ms diagnostic line for future drift detection.
+- New `wrapper_state_path_resolved(self_id, psyche_id)` helper added to `src/common/wrapper_state.rs`; tries the nested perch path first, then falls back to the flat path. When both files exist it prefers the fresher mtime (tie-breaking to nested). Writer call sites keep the inline flat join with a migration-window comment, deferring a writer-side flip to a future phase. 8 wrapper-side production call sites swapped to the resolver; Self-side call sites (`echo_fire.rs`, `orphan.rs`) intentionally left on the flat path.
+- Stale-lock probe gates on `len() == 0 && mtime > 60s` to preserve any live `git` commit (which holds either non-zero contents or a sub-60s timestamp). Best-effort `fs::remove_file` per the established soft-fail idiom.
+- Latent-signoff forward routes through the existing `send::deliver_body_anonymous` TCP-first / spool-fallback path and the existing `event_attr_escape` / `event_body_escape` helpers. Envelope shape is `<EVENT type="latent signoff" from="..." written_at="..." cleared_from="...">BODY</EVENT>` — disjoint from `is_init_signoff_envelope`'s predicate by construction, so wrapper-side `drain_stale_init_signoffs` does not eat it. `LATENT-SIGNOFF-FORWARDED` status line gated behind the delivered-Ok arm so the success message does not fire on the panic-preserve path.
+- Ghost `tracked/.git/` cleanup added to `migrate_legacy_if_needed`; sentinel-free unconditional `remove_dir_all` after `exists()` short-circuit. Existing `migrate_legacy_dot_git_left_in_place` test inverted to `migrate_legacy_removes_ghost_dot_git` + idempotency companion.
+- `next_generation` dropped a redundant intermediate binding (`clippy::let_and_return`).
+- 17 new integration tests (`tests/native_tracked_stale_lock.rs`, `tests/native_wrapper_state_retry.rs`, `tests/native_wrapper_path_resolver.rs`, `tests/native_latent_signoff_deliver_then_die.rs`) plus 1 in-module unit test pinning the envelope-shape disjointness invariant. Source: `.planning/phases/25.2-doyle-cluster-fix-candidates-blast-radius-sanity-check-acros/`.
+
 ## [1.11.3] - 2026-05-22
 
 ### Fixed

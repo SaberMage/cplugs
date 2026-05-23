@@ -23,7 +23,7 @@ description: |
   - "keep going"
   - "resume work"
   - "continue" (bare)
-argument-hint: "<id> [--period <seconds>] | [--auto]"
+argument-hint: "<id> [--period <seconds>] [--pulse-psyche] | [--auto]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 
@@ -137,10 +137,10 @@ Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesi
 ## Step 1: Start in background
 
 ```bash
-$LIVE start <id> [--period <seconds>]
+$LIVE start <id> [--period <seconds>] [--pulse-psyche]
 ```
 
-> **`--period` is opt-in.** Bare `$LIVE start <id>` (no `--period`) launches the Psyche with **no scheduled pulses** — the wrapper still wakes on real events (messages, alarms, communes, file-drops, INIT_SIGNOFF, echo-commune cadence). Pass `--period <seconds>` (minimum 60) only when you want periodic LLM evaluation turns. `--period 0` is also accepted as an explicit opt-out.
+> **8-minute default cadence + opt-in Psyche evaluation.** Bare `$LIVE start <id>` now wakes the wrapper every **8 minutes (480s)** on a cadence. By default the cadence wake fires ONLY the background echo-commune gate — the Psyche LLM is NOT prompted on routine cadence wakes (saves a Claude turn per wake). Pass `--pulse-psyche` to restore the legacy behavior where every cadence wake invokes the Psyche LLM resume turn (Psyche evaluates and may nudge Self). Pass `--period <seconds>` (minimum 60) to override the cadence; `--period 0` is accepted as an explicit no-cadence opt-out (disables the echo-gate cadence too, since the wrapper never wakes on a timer). `--period <N>` for `N` in `1..=59` is rejected with `Minimum pulse period is 60 seconds (or 0 to disable)`. To restore the legacy 20-minute Psyche-evaluating cadence: `$LIVE start <id> --period 1200 --pulse-psyche`.
 
 The start command:
 

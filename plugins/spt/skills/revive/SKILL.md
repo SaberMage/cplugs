@@ -3,7 +3,7 @@ name: revive
 description: |
   Restart a live agent with new generation. Use when the user says "revive",
   "restart live agent", or wants to refresh a live agent's session.
-argument-hint: "<id> [--period <seconds>]"
+argument-hint: "<id> [--period <seconds>] [--pulse-psyche]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 
@@ -14,12 +14,12 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 > **Identity auto-detection:** For messaging commands, your identity is auto-detected from your session. The `revive` command itself requires an explicit ID (startup command).
 
 ```bash
-$LIVE revive <id> [--period <seconds>]
+$LIVE revive <id> [--period <seconds>] [--pulse-psyche]
 ```
 
 Quick restart for a live agent. Kills existing wrapper, Psyche poll, and Self, then re-runs the live start flow with the same ID. Generation counter increments automatically.
 
-> **`--period` is opt-in** (same default as `$LIVE start`). Bare `$LIVE revive <id>` (no `--period`) revives with **no scheduled pulses** — the wrapper still wakes on real events. Pass `--period <seconds>` only when you want periodic LLM evaluation turns. `--period 0` is also accepted as an explicit opt-out.
+> **8-minute default cadence + opt-in Psyche evaluation** (same default as `$LIVE start`). Bare `$LIVE revive <id>` now wakes the wrapper every **8 minutes (480s)**. By default the cadence wake fires ONLY the background echo-commune gate — the Psyche LLM is NOT prompted on routine cadence wakes. Pass `--pulse-psyche` to restore the legacy "Psyche LLM evaluates on every cadence wake" behavior. Pass `--period <seconds>` (minimum 60) to override the cadence; `--period 0` is accepted as an explicit no-cadence opt-out (disables the echo-gate cadence too). `--period <N>` for `N` in `1..=59` is rejected with `Minimum pulse period is 60 seconds (or 0 to disable)`. Legacy 20-minute Psyche-evaluating cadence: `$LIVE revive <id> --period 1200 --pulse-psyche`.
 
 The REVIVE status includes the spacetime version. Mention this version when telling the user the agent has been revived.
 

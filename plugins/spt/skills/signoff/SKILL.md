@@ -15,12 +15,12 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 ## Flow
 
-1. **Download current Psyche context** to check what's missing:
+1. **Download Psyche's *current* context** — it shifts during the session as background echo communes fire. Re-download right before composing; the gen-N snapshot you read at session start is already stale:
    ```bash
    $LIVE psyche-download <your-id>
    ```
 
-2. **Compare** the downloaded context against your current knowledge. Identify any missing points -- work completed, decisions made, context changes since the last commune.
+2. **Diff your knowledge against this fresh download** — only what's missing from *it* belongs in the FINAL COMMUNE body (work completed, decisions made, intentions formed). Anything already absorbed is not.
 
 3. **Sign off** -- use the **Write tool** to create
    `.claude/{your-id}-signoff.md`. Do not use Bash/heredoc -- Write is the
@@ -60,7 +60,9 @@ When the FINAL-COMMUNE body is non-empty (the second sub-bullet of Step 3 above)
 - **Outside any tracked project** (no payload at all from `psyche-download` — no `<current/>` tag, no `project="..."` attribute): emit ONLY `<live-context>...</live-context>`. Do NOT emit an empty `<project-context>` envelope.
 - **Plain signoff** (empty file body, first sub-bullet of Step 3): the two-slice contract does NOT apply — the file is literally empty.
 
-See `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` for the full teaching with three worked examples. See `psyche.md` §`<output_envelope>` for the canonical per-slice content taxonomy.
+See `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` for the full teaching with three worked examples. See `psyche.md` §`<output_envelope>` for the canonical per-slice content taxonomy. See `psyche.md` §`<absorption>` (25.3-02) for the inbound-merge + re-emit rules — Psyche absorbs and re-emits these envelopes; on the FINAL_COMMUNE the wrapper's last Psyche session emits the two-slice body for the same routing pass.
+
+**Routing: emit this envelope; SPT routes it to disk (Phase 25.3-02).** You write the two-slice body in the signoff file; the wrapper feeds it through Psyche's final session, and SPT (the Rust runtime) routes each emitted slice to its destination file. The `<live-context>` body lands at `agents/{your-id}/live_context.md`. The `<project-context>` body lands at `projects/<resolved_project>/{your-id}.md`, where `<resolved_project>` is resolved BY SPT via Self's perch `info.json` `cwd` field (25.3-01 Defect B2 fix). You do NOT name the project (Option A no-name shape locked); you do NOT know the filesystem path. NOT "Psyche writes the file." NOT "the agent persists to the project file." You emit; SPT routes.
 
 **Signoff vs Stop:**
 - **`/spt:signoff`** -- Graceful: INIT_SIGNOFF (with optional final commune) to Psyche first. Use for normal session end.

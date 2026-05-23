@@ -22,7 +22,11 @@ Every non-empty commune body wraps content in two nested-XML envelopes per Phase
 
 **Nested envelopes.** The outer `<EVENT type="commune">` envelope is composed by the `$LIVE commune` runtime from your file body. You NEVER write `<EVENT>` tags in `.claude/{your_id}-commune.md`. You write ONLY the inner two-slice body. The two layers nest: outer EVENT wraps inner two-slice body.
 
-(See `psyche.md` §`<output_envelope>` for the canonical per-slice content taxonomy -- what belongs in `<live-context>` vs `<project-context>`.)
+**Routing: emit this envelope; SPT routes it to disk (Phase 25.3-02).** You write the two-slice body; SPT (the Rust runtime) routes each slice to its destination file. The `<live-context>` body lands at `agents/{your_id}/live_context.md`. The `<project-context>` body lands at `projects/<resolved_project>/{your_id}.md`, where `<resolved_project>` is resolved BY SPT via Self's perch `info.json` `cwd` field (25.3-01 Defect B2 fix). You do NOT name the project in the envelope (the no-name shape is Option A locked); you do NOT know the filesystem path. NOT "Psyche writes the file." NOT "the agent persists to the project file." You emit; SPT routes.
+
+Psyche absorbs and re-emits these envelopes per `psyche.md` §`<absorption>` rules (25.3-02). Inbound `<project-context>` envelopes are merged into Psyche's in-memory context and re-emitted on the next `<context_save>` cadence fire, which is the round-trip path by which inbound project deltas reach the on-disk `projects/<resolved_project>/{your_id}.md` artifact.
+
+(See `psyche.md` §`<output_envelope>` for the canonical per-slice content taxonomy -- what belongs in `<live-context>` vs `<project-context>`. See `psyche.md` §`<absorption>` for the inbound-merge + re-emit rules.)
 
 ## Memformat Guide
 

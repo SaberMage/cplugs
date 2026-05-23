@@ -15,12 +15,12 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
 
 ## Flow
 
-1. **Download current Psyche context** to see what Psyche already knows:
+1. **Download Psyche's *current* context** — it shifts during the session as background echo communes fire. Re-download right before composing; the gen-N snapshot you read at session start is already stale:
    ```bash
    $LIVE psyche-download <your-id>
    ```
 
-2. **Compare** the downloaded context against your current knowledge. Identify what's missing or stale -- new work completed, decisions made, context shifts, intentions formed since the last commune. If the download includes a `<memformat>` section, use it as a guide for what topics to cover in your commune. The download output may also include a `## Pending Commune (uncommitted)` section if a previous commune is still in flight -- that body is queued for the next Psyche consume and you do NOT need to re-send it.
+2. **Diff your knowledge against this fresh download** — only what's missing from *it* is the real delta (new work, decisions, intentions). Anything already absorbed is not. If the download includes a `<memformat>` section, use it as a guide for what topics to cover. A `## Pending Commune (uncommitted)` section means a previous commune is still queued — do NOT re-send it.
 
 3. **Commune only the delta** -- use the **Write tool** to create
    `.claude/{your-id}-commune.md` with the two-slice body as its contents

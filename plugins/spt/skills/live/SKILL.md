@@ -193,6 +193,10 @@ Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during s
 - If stale or missing recent work, send a commune to update Psyche.
 - If `psyche-download`'s stderr contains the literal substring `NO-CONTEXT:<id>` (hyphen + colon — anchor strictly; the disjoint `NO_CONTEXT:<id>` underscore-form emitted by `$LIVE fork` MUST NOT match), enter the **first-commune flow** below before doing anything else with this agent. This is the FRESH-02 trigger; the same flow is reached from the `kind:"prompt-new"` arm under [ID Recollection Step 2](#step-2-dispatch-on-kind) (FRESH-01). One unified surface, two trigger paths.
 
+#### Drop file lifecycle (25.3-05 D-E-01 single-writer contract)
+
+As of spt v1.11.7, `$LIVE psyche-download <id>` is **read-only** over `.claude/{id}-{commune,signoff}.md`. The drop file is NOT deleted by this command — it lingers on disk until the live wrapper consumes it on next boot (the wrapper's `process_file_drop` is the sole deleter, gated on `exit_code == 0` of the LLM resume per the Phase 30 D8 atomicity contract). If the wrapper never boots within a session, the operator can `Remove-Item` the drop file manually; `psyche-download` is idempotent and re-reads + re-appends with a new mtime header on subsequent invocations (multi-invocation may yield duplicate `## Pending Commune` sections in `live_context.md` — accepted; see `.planning/debug/file-drop-file-gone-todlando.md` for the race rationale this contract closes).
+
 <!-- NO-CONTEXT stderr token contract anchor: src/live/context.rs run_download emits
      "NO-CONTEXT:{id} (no stored context)" on stderr (exit 0). The predicate above is
      anchored on the literal "NO-CONTEXT:" hyphen + colon substring. The disjoint

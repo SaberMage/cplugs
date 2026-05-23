@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.8] - 2026-05-23
+
+### Fixed
+- **Malformed `live_context.md` from the Psyche LLM now triggers a one-shot self-heal respawn.** When the wrapper's post-LLM route hook (introduced in v1.11.7 / Plan 25.3-05) reads `agents/<id>/live_context.md` and finds the project slice missing — AND the project is resolvable — AND the prompt that turn carried a `CURRENT_PROJECT_CONTEXT` block — the wrapper now respawns the Psyche session ONCE via `resume_session_with_exit` with a corrective prompt anchored on `did not honor the two-slice envelope contract`. On retry exhaustion the wrapper logs `[LIVE-CONTEXT-MALFORMED] retry_exhausted` and continues without further action. Single retry cap; no infinite respawn loops. Defect G2 from `.planning/debug/todlando-project-context-not-persisted.md`.
+
+### BTS
+- **Plan 25.3-06 (Defect G2 self-heal):** new `pub(crate) trait ResumeRespawnDispatcher` (`src/live/wrapper/mod.rs:538`) decouples the respawn dispatcher from `WrapperState` so the helper is testable without spawning real Psyche processes — production impl on `WrapperState`, mock `TestResumeRespawn` for inline tests; `RouteLiveCtxOutcome` extended with `Respawned(Box<...>)` and `MalformedRetryExhausted` variants; `route_live_context_md_if_changed` signature extended with `last_prompt: Option<&str>` and `dispatcher: &D` parameters; three hook sites in `src/live/wrapper/claude.rs` (init / resume / final) updated to pass `(prompt|None, self)`; corrective-prompt anchor literal locked at `mod.rs:752` and asserted by test at `mod.rs:4245`; 4 new inline G2 tests cover fire / no-fire-on-rule-6 / respawn-routed / retry-exhausted paths; 2 Plan 25.3-05 tests updated to the new signature. Full wrapper-module suite 121 tests green (117 from v1.11.7 + 4 new G2 guards); `cargo build --release` clean. Source: `.planning/phases/25.3-project-context-envelope-persistence-encoding-defects/25.3-06-PLAN.md`.
+
 ## [1.11.7] - 2026-05-23
 
 ### Fixed

@@ -206,7 +206,11 @@ As of spt v1.11.7, `$LIVE psyche-download <id>` is **read-only** over `.claude/{
 
 ### First-commune flow (FRESH-01 / FRESH-02 / FRESH-03)
 
-When the trigger fires (NO-CONTEXT on `psyche-download`, OR pick-spec returned `kind:"prompt-new"` and the user picked an id), fire a SINGLE `AskUserQuestion` with these fields:
+When the trigger fires (NO-CONTEXT on `psyche-download`, OR pick-spec returned `kind:"prompt-new"` and the user picked an id):
+
+**Announce first** (before synthesizing): emit `Fresh live agent. Preparing for init.` to the user as a plain one-line message (no formatting, no code fence). The `{first commune summary}` synthesis below reads session memory + `README.md` + `CLAUDE.md` + `.planning/STATE.md` and takes several seconds — without this announcement the user sees a silent dead pause between trigger and the AskUserQuestion. Then synthesize the summary and fire the AskUserQuestion below.
+
+Fire a SINGLE `AskUserQuestion` with these fields:
 
 - **header**: `First commune`
 - **question**: `Here is a summary of my first context as live agent <agent_id>. Anything I should add, or proceed to init?` (substitute `<agent_id>` from context)

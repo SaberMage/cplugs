@@ -4,6 +4,10 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.11] - 2026-05-23
+
+- **Phase 25.4 follow-up: `.more-done` echo-commune sentinel fires again after nested-perch migration.** Plan 25.4-04 migrated the writer destination at `src/owl/hook_idle.rs:153` to `perch_path::resolve_perch_path(psyche_id, ParentHint::Explicit(owl_id))` but missed the gate predicate two lines above it (`src/owl/hook_idle.rs:137`), which still consulted `owlery::ready_file(psyche_id)` at the flat path. Post-25.4 the flat ready file never exists for any agent (all psyche perches are NESTED-only), so the gate always returned early and `.more-done` was silently never written — wrapper `echo_fire.rs` consumed no sentinel, echo-commune fires were dead. Surfaced by Plan 25.4-07 operator smoke probe: `probetest` had no `.more-done` at either flat or nested path after Stop hook fired multiple times. Fix uses the SAME resolver hint as the writer (`Explicit(owl_id)`). Test helper `touch_psyche_ready` updated to write the ready sentinel at the nested path the new gate consults. All 7 `owl::hook_idle` tests pass; landmine/`poll_nested_psyche`/`perch_path_no_flat_{psyche,worker}` regression suites unchanged. Source: `src/owl/hook_idle.rs` commit `48b61be`.
+
 ## [1.11.10] - 2026-05-23
 
 ### Fixed

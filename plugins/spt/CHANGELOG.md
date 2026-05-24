@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.10] - 2026-05-23
+
+### Fixed
+- **Binary handoff from v1.11.8 wrappers to v1.11.10+ binaries no longer dies before logging.** Corrects `[1.11.9]`, which added `pulse_psyche` as a REQUIRED clap positional on the hidden `_psyche-wrapper` subcommand without a `default_value`. v1.11.8 wrappers build the handoff argv with only 4 positionals (`<id> <period> <gen> <session_name>`) and exec the new binary; clap rejected the 5-arg invocation with `the following required arguments were not provided: <PULSE_PSYCHE>` and exited before reaching `WrapperState::new` — no log line, perch went stale, listener orphan-detected on next iteration and died too. State-file backward-compat alone was insufficient because state restoration runs AFTER argv parse: `WrapperHandoffState`'s `#[serde(default)]` on `pulse_psyche` was never reached. Fix: `#[arg(default_value = "0")]` on `Commands::PsycheWrapper::pulse_psyche` in `src/cli.rs`. v1.11.8 wrappers now land in the new binary with `pulse_psyche="0"`, the state-file then wins per D-07 lifecycle precedence — net behavior identical to a fresh `$LIVE start` without `--pulse-psyche`. v1.11.9+ wrappers (which always emit the explicit 6th arg) are unaffected.
+
+### BTS
+- **Quick 260523-7zy (corrects [1.11.9]):** single-line clap attribute addition (`#[arg(default_value = "0")]`) above the `pulse_psyche: String` field inside `Commands::PsycheWrapper` at `src/cli.rs:196`. No other code changed — wrapper-side dispatch (`arg == "1"` truthiness) flows defaulted `"0"` through the "off" branch, exactly matching legacy v1.11.8 behavior. Regression guard `tests/handoff_integration.rs::psyche_wrapper_5arg_argv_backward_compat` locks both shapes via in-process clap parse: 5-arg argv parses with `pulse_psyche="0"`, 6-arg argv preserves the explicit `"1"`. Full `cargo test --test handoff_integration` suite green (19/19, 1 pre-existing ignored). Plugin version bump (1.11.9 → 1.11.10) done by hand; `docs/DEPLOY.ps1` is the operator's manual follow-up. Source: `.planning/quick/260523-7zy-fix-v1-11-9-handoff-argv-backward-compat/`. Root cause: `.planning/debug/binary-handoff-defer-todlando.md`.
+
 ## [1.11.9] - 2026-05-23
 
 ### Changed

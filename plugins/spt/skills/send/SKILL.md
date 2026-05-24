@@ -38,7 +38,7 @@ If auto-detection fails, pass your ID explicitly: `$OWL send <target> <your-id>`
 
 **When to use which:**
 - **`send`**: You already have a listener. Fire-and-forget, no reply perch created.
-- **`send --reply-to`**: You received a message and want to respond. Same as deliver, clearer intent.
+- **`send --reply-to`**: You received a message and want to respond. `from` is auto-set from the original sender.
 - **`ask`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
 
 ## Pre-checks

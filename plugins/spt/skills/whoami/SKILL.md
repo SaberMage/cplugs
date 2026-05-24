@@ -28,5 +28,5 @@ No arguments needed. The command matches the current session's parent process ag
 ## When to use
 
 - At the start of a session when you need to know if you already have an active perch
-- Before running `/spt:listen` to check if you're already listening
+- Before running `/spt:ready` to check if you're already listening
 - When the user asks about your agent identity

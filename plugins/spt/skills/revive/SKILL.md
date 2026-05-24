@@ -28,32 +28,34 @@ The REVIVE status includes the spacetime version. Mention this version when tell
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# deliver -- fire-and-forget to a target (use when you have your own perch)
-$OWL deliver <target> <<'EOF'
+# send -- fire-and-forget to a target (use when you have your own perch)
+$OWL send <target> <<'EOF'
 message body
 EOF
 
-# reply -- respond to whoever messaged you (sugar for deliver with swapped arg names)
-$OWL reply <sender> <<'EOF'
+# send --reply-to -- respond to whoever messaged you
+$OWL send --reply-to <sender> <<'EOF'
 response body
 EOF
 
-# send -- deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
-$OWL send <target> <<'EOF'
+# ring -- send and wait for reply (alias: ask)
+$OWL ring <target> <<'EOF'
 message body
 EOF
 ```
 
-If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-id>`, `$OWL reply <sender> <your-id>`, `$OWL send <target> <your-id>`.
+If auto-detection fails, pass your ID explicitly: `$OWL send <target> <your-id>`, `$OWL send --reply-to <sender> <your-id>`, `$OWL ring <target> <your-id>`.
 
 **When to use which:**
-- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
-- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
-- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+- **`send`**: Fire-and-forget message to a target.
+- **`send --reply-to`**: You received a message and want to respond. `from` is auto-set from the original sender.
+- **`ring`**: Send and wait for reply. Creates a temporary perch if you have no listener.
 
 After the revive background task launches, run `$LIVE psyche-download <id>` to retrieve prior context (pass the same ID you used in revive). Evaluate staleness and send a commune if needed.
 
-**Agent-type guard:** Only works on live agents. If target is a plain listener, refuses with: "Only live agents can be revived."
+> **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md`.
+
+**Agent-type guard:** Only works on live agents. If target is a ready agent, refuses with: "Only live agents can be revived."
 
 ### Primary (Monitor)
 
@@ -80,10 +82,10 @@ $OWL poll <id> listen --live --once
 
 Run with `run_in_background: true` and description `« spt event »`. Repeat after every message.
 
-After revive, message handling follows the same dual-path protocol: messages arrive via Monitor stream (primary) or Bash one-shot (fallback) when idle, or via PreToolUse hook injection (when busy). See `/spt:listen` for full details on EVENT envelope parsing.
+After revive, message handling follows the same dual-path protocol: messages arrive via Monitor stream (primary) or Bash one-shot (fallback) when idle, or via PreToolUse hook injection (when busy). See `/spt:ready` for full details on EVENT envelope parsing.
 
 ## Echo-commune brief (post-revive)
 
-A revive at SessionStart may immediately surface an `<EVENT type="echo_commune" from="<your-id>-psyche">` brief — the haiku-summary echo-commune fired by your Psyche wrapper as part of the resume cycle (Phase 29 AUTO-EC). The body is wrapped in the Phase 25 D-10/D-11 two-slice envelope (`<live-context>` plus optionally `<project-context>`); absorb both slices as one continuous resume brief (D-25.1-05). See `/spt:live` for the full echo_commune envelope catalog entry and `/spt:listen` for body-parsing rules.
+A revive at SessionStart may immediately surface an `<EVENT type="echo_commune" from="<your-id>-psyche">` brief — the haiku-summary echo-commune fired by your Psyche wrapper as part of the resume cycle (Phase 29 AUTO-EC). The body is wrapped in the Phase 25 D-10/D-11 two-slice envelope (`<live-context>` plus optionally `<project-context>`); absorb both slices as one continuous resume brief (D-25.1-05). See `/spt:live` for the full echo_commune envelope catalog entry and `/spt:ready` for body-parsing rules.
 
 **Important:** While your perch is active, always launch Agent tool calls with `run_in_background: true`. Foreground agents block your poll loop -- no messages can be delivered until the agent finishes.

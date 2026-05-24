@@ -33,7 +33,7 @@ All commands use `$OWL` and `$LIVE` env vars, auto-injected by the plugin's Sess
 
 > **Output format:** Status messages (ANSI-colored) go to **stderr**. Live agent output is orange. Agents parse `TAG:value` tokens.
 
-> **Identity auto-detection:** For messaging commands (deliver, reply, send, commune, signoff, etc.), your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails. Startup commands (`start`, `revive`) always require an explicit ID.
+> **Identity auto-detection:** For messaging commands (send, ring, commune, signoff, etc.), your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails. Startup commands (`start`, `revive`) always require an explicit ID.
 
 Starting a live agent is a single background task. The Psyche launches as an external process, then the command enters your poll loop.
 
@@ -42,28 +42,28 @@ Starting a live agent is a single background task. The Psyche launches as an ext
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# deliver -- fire-and-forget to a target (use when you have your own perch)
-$OWL deliver <target> <<'EOF'
+# send -- fire-and-forget to a target (use when you have your own perch)
+$OWL send <target> <<'EOF'
 message body
 EOF
 
-# reply -- respond to whoever messaged you (sugar for deliver with swapped arg names)
-$OWL reply <sender> <<'EOF'
+# send --reply-to -- respond to whoever messaged you
+$OWL send --reply-to <sender> <<'EOF'
 response body
 EOF
 
-# send -- deliver + create ephemeral reply perch + poll for reply (use when you have NO perch)
-$OWL send <target> <<'EOF'
+# ring -- send and wait for reply (alias: ask)
+$OWL ring <target> <<'EOF'
 message body
 EOF
 ```
 
-If auto-detection fails, pass your ID explicitly: `$OWL deliver <target> <your-id>`, `$OWL reply <sender> <your-id>`, `$OWL send <target> <your-id>`.
+If auto-detection fails, pass your ID explicitly: `$OWL send <target> <your-id>`, `$OWL send --reply-to <sender> <your-id>`, `$OWL ring <target> <your-id>`.
 
 **When to use which:**
-- **`deliver`**: You already have a listener. Fire-and-forget, no reply perch created.
-- **`reply`**: You received a message and want to respond. Same as deliver, clearer intent.
-- **`send`**: You have no listener. Creates a temporary perch, delivers, then polls for the reply.
+- **`send`**: Fire-and-forget message to a target.
+- **`send --reply-to`**: You received a message and want to respond. `from` is auto-set from the original sender.
+- **`ring`**: Send and wait for reply. Creates a temporary perch if you have no listener.
 
 ## Auto-resume (--auto, SessionStart auto-pick, casual triggers)
 
@@ -121,6 +121,8 @@ ONLY if `$LIVE start <id>` succeeded above (NOT on Cancel, NOT on fall-through t
 ```bash
 $LIVE psyche-download <id>
 ```
+
+> **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md` per the §"Drop file lifecycle" contract below.
 
 Then surface the "next body of work" to the user. Scan the psyche-download stdout line-by-line for the FIRST line that prefix-matches any of these three exact H2 markers (case-sensitive, prefix match — `## Current Focus (gen 45)` qualifies):
 
@@ -185,6 +187,8 @@ After launching the background start task:
 ```bash
 $LIVE psyche-download <id>
 ```
+
+> **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md` per the §"Drop file lifecycle" contract below.
 
 Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during startup before the perch is fully registered.
 
@@ -267,18 +271,18 @@ When you see this comment, fire `AskUserQuestion` with the header / question / m
 
 ## On message arrival
 
-Follow the same message handling protocol as `/spt:listen`. Messages arrive on TWO orthogonal paths:
+Follow the same message handling protocol as `/spt:ready`. Messages arrive on TWO orthogonal paths:
 
 1. **Parse the envelope.**
    - **Primary (Monitor stream) / Fallback (Bash `--once`)**: stdout carries a single `<EVENT>` line per delivery. Four shapes:
      - `<EVENT type="msg" from="<sender-id>">body</EVENT>` — regular message; `from` attribute = sender ID.
      - `<EVENT type="alarm" target-time="<ISO-8601>" current-time="<ISO-8601>">body</EVENT>` — self-originated timed alarm (per D2.b, no `from`).
-     - `<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>` — auto-fired echo-commune brief from the Psyche wrapper, emitted after a SessionStart-triggered `/clear` or `/compact` cycle (Phase 29 AUTO-EC). `from` is the psyche-id (`<self-id>-psyche`); `note` carries the trigger source (e.g., `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, `"Echo commune — orphan teardown"`). Body is the haiku-model summary wrapped in the Phase 25 D-10/D-11 two-slice envelope: `<live-context>...</live-context>` plus (when the Psyche resolved a tracked project) `<project-context>...</project-context>`. After `<br>`-split and HTML-unescape per `/spt:listen` body-parsing rules below (lines 169–173 of that file), the two slices form a single SessionStart resume brief — absorb both as one continuous context (D-25.1-05). For the authoring side of the same two-slice contract, see `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` and `psyche.md` §`<output_envelope>` for the canonical per-slice taxonomy.
+     - `<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>` — auto-fired echo-commune brief from the Psyche wrapper, emitted after a SessionStart-triggered `/clear` or `/compact` cycle (Phase 29 AUTO-EC). `from` is the psyche-id (`<self-id>-psyche`); `note` carries the trigger source (e.g., `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, `"Echo commune — orphan teardown"`). Body is the haiku-model summary wrapped in the Phase 25 D-10/D-11 two-slice envelope: `<live-context>...</live-context>` plus (when the Psyche resolved a tracked project) `<project-context>...</project-context>`. After `<br>`-split and HTML-unescape per `/spt:ready` body-parsing rules below (lines 169–173 of that file), the two slices form a single SessionStart resume brief — absorb both as one continuous context (D-25.1-05). For the authoring side of the same two-slice contract, see `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` and `psyche.md` §`<output_envelope>` for the canonical per-slice taxonomy.
      - `<EVENT type="init_signoff" timestamp="<ISO-8601>">body</EVENT>` — Self-initiated signoff event (Phase 18.4 / quick-260513-v8f). No `from` attribute — signoff is self-originated. Body carries the signoff context.
      - Body parsing (applies to all four types — same escape conventions): split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
      - **Parsers MUST treat the `type` attribute value case-insensitively** (e.g., `echo_commune`, `ECHO_COMMUNE`, and `Echo_Commune` are equivalent). The emitter writes lowercase; the case-insensitive predicate provides forward-compat headroom.
    - **Hook path (orthogonal)**: when you are busy mid-tool-call, PreToolUse injects `<owl_messages>...</owl_messages>` XML into your tool context. Read the `from` attribute as sender ID. Same handling.
-2. **Reply** via `$OWL reply <sender-id>`.
+2. **Reply** via `$OWL send --reply-to <sender-id>`.
 3. **Primary (Monitor)**: continue — the stream stays alive automatically; the next event will arrive on the same Monitor task. The same applies to direct event delivery and to hook-delivered messages — no re-register needed at all under stream mode.
 4. **Fallback (Bash + `--once`)**: re-register `$OWL poll <id> listen --live --once` as a fresh Bash background task (with `run_in_background: true`). Hook-delivered messages on the fallback path do not require re-register because the underlying Bash poll is still running between events.
 

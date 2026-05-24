@@ -20,6 +20,8 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
    $LIVE psyche-download <your-id>
    ```
 
+   > **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md`.
+
 2. **Diff your knowledge against this fresh download** — only what's missing from *it* is the real delta (new work, decisions, intentions). Anything already absorbed is not. If the download includes a `<memformat>` section, use it as a guide for what topics to cover. A `## Pending Commune (uncommitted)` section means a previous commune is still queued — do NOT re-send it.
 
 3. **Commune only the delta** -- use the **Write tool** to create

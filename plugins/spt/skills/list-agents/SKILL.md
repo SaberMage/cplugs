@@ -1,11 +1,11 @@
 ---
 name: list-agents
 description: |
-  Unified listing for SPT agents -- plain owl listeners, live agents, and Psyche
+  Unified listing for SPT agents -- ready agents, live agents, and Psyche
   processes. Use when the user says "list agents", "who's live", "who's
   listening", "show psyches", "show active listeners", or wants a roster of
   active perches. Session-aware: defaults to live agents in a live session,
-  plain owl listeners otherwise. Pass `--psyches` to list Psyche processes
+  ready agents otherwise. Pass `--psyches` to list Psyche processes
   instead.
 argument-hint: "[--all] [--offline] [--here] [--psyches]"
 allowed-tools: [Bash]
@@ -21,7 +21,7 @@ Claude Code session so the SessionStart hook re-runs.
 
 Pick ONE command based on session context:
 
-- **Non-live session (default)** -- show plain owl listeners:
+- **Non-live session (default)** -- show ready agents:
   ```bash
   $OWL list
   ```

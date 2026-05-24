@@ -1,12 +1,12 @@
 ---
 name: force-stop
 description: |
-  Force-stop an SPT agent -- plain owl listener or live agent (with its
+  Force-stop an SPT agent -- ready agent or live agent (with its
   Psyche). Use when the user says "stop listening", "stop owl", "kill live
   agent", "force stop", "tear down perch", or "immediately terminate".
   Session-aware: a live session (or a target with `live:true` in info.json)
   routes through `$LIVE stop` (3-step kill including Psyche teardown); a
-  plain listener routes through `$OWL stop`.
+  ready agent routes through `$OWL stop`.
 argument-hint: "[<id>] | --all"
 allowed-tools: [Bash]
 ---
@@ -38,7 +38,7 @@ Pick ONE branch based on the target:
   `$LIVE stop --all` stops **all** live agents and their Psyches, and also
   cleans orphaned wrapper PID files.
 
-- **Plain listener (non-live)** -- use `$OWL stop`:
+- **Ready agent (non-live)** -- use `$OWL stop`:
   ```bash
   $OWL stop
   $OWL stop --all

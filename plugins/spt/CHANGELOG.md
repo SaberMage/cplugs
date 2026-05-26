@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [1.11.16] - 2026-05-25
 
+- **Live psyche poll stability fix.** Wrapper-owned psyche poll (the `psyche && parent.is_some()` path, spawned every wrapper iteration) now skips the DUPLICATE listener guard and writes a schema-minimal `{"pid": <int>}` info.json. Fixes a Windows PID-recycling false positive that tripped the 3-consecutive-empty-exit backstop and crashed the live wrapper (debug session `echo-gate-poll-exit-sentinel-triad`, Symptom 2), and stops a cross-session `OWL_SESSION_ID` inheritance leak into the nested psyche perch. `get_pid_from_info` / `get_parent_pid_from_info` migrated to `serde_json::Value` lookups so both legacy and minimal info.json shapes parse. No change to Self / Listener / Live / Spine / Touch / Working perches. Commit `6342852`.
+- **Echo-commune forensic resume.** Dropped `--no-session-persistence` from echo-commune haiku fires — each fire stays a fresh session (no `--resume`), but the jsonl now persists under the psyche projects root so operators can `claude --resume <session_uuid>` post-hoc for debugging. Test F flipped from "MUST be in argv" to "MUST NOT be in argv". Commit `0c9233e`.
 - **Skill doc prune.** Trimmed verbose and redundant prose from three skill manifests — `plugin/spt/skills/{live,ready,send}/SKILL.md` — for clarity at skill-discovery time. 154 deletions / 45 insertions; no behavioral or command-surface change. Commit `5b9a77b`.
 
 ## [1.11.15] - 2026-05-24

@@ -1,7 +1,7 @@
 ---
 name: send
 description: |
-  Send a message to another owl agent. Use when the user says "send to",
+  Send a message to another SPT agent. Use when the user says "send to",
   "message", "tell <agent>", or wants to communicate with another agent.
 argument-hint: "<target> [--block]"
 allowed-tools: [Bash, Read]

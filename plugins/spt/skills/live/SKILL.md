@@ -1,7 +1,7 @@
 ---
 name: live
 description: |
-  Start, resume, or manage a live Self agent with Psyche companion.
+  Run a live agent session. For past sessions, restores a summarized context.
 
   EXPLICIT START phrases (route to /spt:live <id>):
   - "live as"
@@ -35,14 +35,14 @@ All commands use `$OWL` and `$LIVE` env vars, auto-injected by the plugin's Sess
 
 > **Identity auto-detection:** For messaging commands (send, ring, commune, signoff, etc.), your identity is auto-detected from your session. Pass your ID explicitly only if auto-detection fails. Startup commands (`start`, `revive`) always require an explicit ID.
 
-Starting a live agent is a single background task. The Psyche launches as an external process, then the command enters your poll loop.
+Starting a live agent session is a single background task. From then on, the live agent id becomes your name. You have a "Psyche" companion agent. Relative to Psyche, you are referred to as "Self".
 
 ## Messaging Command Reference
 
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# send -- fire-and-forget to a target (use when you have your own perch)
+# send -- fire-and-forget to a target (use when you have an active session)
 $OWL send <target> <<'EOF'
 message body
 EOF
@@ -142,43 +142,22 @@ Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesi
 $LIVE start <id> [--period <seconds>] [--pulse-psyche]
 ```
 
-> **8-minute default cadence + opt-in Psyche evaluation.** Bare `$LIVE start <id>` now wakes the wrapper every **8 minutes (480s)** on a cadence. By default the cadence wake fires ONLY the background echo-commune gate — the Psyche LLM is NOT prompted on routine cadence wakes (saves a Claude turn per wake). Pass `--pulse-psyche` to restore the legacy behavior where every cadence wake invokes the Psyche LLM resume turn (Psyche evaluates and may nudge Self). Pass `--period <seconds>` (minimum 60) to override the cadence; `--period 0` is accepted as an explicit no-cadence opt-out (disables the echo-gate cadence too, since the wrapper never wakes on a timer). `--period <N>` for `N` in `1..=59` is rejected with `Minimum pulse period is 60 seconds (or 0 to disable)`. To restore the legacy 20-minute Psyche-evaluating cadence: `$LIVE start <id> --period 1200 --pulse-psyche`.
+> **8-minute default period** Period defines how often a context summary is generated in the background via "echo communes". Pass `--period <seconds>` (minimum 60) to override the cadence; `--period 0` is accepted as an explicit no-cadence opt-out.
 
 The start command:
 
-1. **Launches the Psyche** as an external `claude` process (wrapper loop that polls owl and feeds messages to `claude -p --resume`)
-2. **Enters your poll loop** inline -- emitting one `<EVENT>` envelope line per delivery under stream mode
+1. **Launches your Psyche** as an external process
+2. **Enters your poll loop** inline -- emitting one `<EVENT>` envelope line per message delivery
 3. Reports the Psyche's session name and generation number
 
-### Primary (Monitor)
+### Invocation (Monitor)
 
-Invoke `$LIVE start <id> [--period <seconds>]` via the Monitor tool with:
+Invoke `$LIVE start <id>` via the Monitor tool with:
 - `command: "$LIVE start <id>"`
 - `persistent: true`
 - `description: "« spt event »"`
 
 `$LIVE start` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg|alarm|echo_commune|init_signoff" ...>body</EVENT>` line per delivery. See [On message arrival](#on-message-arrival) for the full envelope-type catalog.
-
-**Important:**
-- `$LIVE start` already enters the poll loop — do **not** run `$OWL poll` immediately after start, or it will reject with `DUPLICATE`.
-- Do not use `$LIVE start` again after the initial start — it will reject with `COLLISION`.
-- Under stream mode you do NOT re-register after each message; the stream stays alive automatically.
-
-### Fallback (Monitor unavailable)
-
-Invoke `$LIVE start <id> [--period <seconds>]` via the Bash tool with:
-- `run_in_background: true`
-- `description: "« spt event »"`
-
-When a message arrives, the background task completes. Handle the message, then **re-register** with a fresh Bash background task (NOT another `$LIVE start` — that would reject with `COLLISION`):
-
-```bash
-$OWL poll <id> listen --live --once
-```
-
-Run with `run_in_background: true` and description `« spt event »`. Repeat after every message. The `--once` flag is required so the listener exits after one delivery (matching Bash background-task semantics).
-
-The LIVE-START status includes the spacetime version. Mention this version when telling the user you're live.
 
 ## Step 2: Retrieve Psyche context
 
@@ -188,25 +167,14 @@ After launching the background start task:
 $LIVE psyche-download <id>
 ```
 
-> **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md` per the §"Drop file lifecycle" contract below.
+> **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content.
 
 Pass the same `<id>` you used in `$LIVE start`. Auto-detection may fail during startup before the perch is fully registered.
 
 - If content is current, no action needed.
-- If context has information you lack (e.g., after `/clear`), absorb it.
+- If context has information you lack, absorb it.
 - If stale or missing recent work, send a commune to update Psyche.
-- If `psyche-download`'s stderr contains the literal substring `NO-CONTEXT:<id>` (hyphen + colon — anchor strictly; the disjoint `NO_CONTEXT:<id>` underscore-form emitted by `$LIVE fork` MUST NOT match), enter the **first-commune flow** below before doing anything else with this agent. This is the FRESH-02 trigger; the same flow is reached from the `kind:"prompt-new"` arm under [ID Recollection Step 2](#step-2-dispatch-on-kind) (FRESH-01). One unified surface, two trigger paths.
-
-#### Drop file lifecycle (25.3-05 D-E-01 single-writer contract)
-
-As of spt v1.11.7, `$LIVE psyche-download <id>` is **read-only** over `.claude/{id}-{commune,signoff}.md`. The drop file is NOT deleted by this command — it lingers on disk until the live wrapper consumes it on next boot (the wrapper's `process_file_drop` is the sole deleter, gated on `exit_code == 0` of the LLM resume per the Phase 30 D8 atomicity contract). If the wrapper never boots within a session, the operator can `Remove-Item` the drop file manually; `psyche-download` is idempotent and re-reads + re-appends with a new mtime header on subsequent invocations (multi-invocation may yield duplicate `## Pending Commune` sections in `live_context.md` — accepted; see `.planning/debug/file-drop-file-gone-todlando.md` for the race rationale this contract closes).
-
-<!-- NO-CONTEXT stderr token contract anchor: src/live/context.rs run_download emits
-     "NO-CONTEXT:{id} (no stored context)" on stderr (exit 0). The predicate above is
-     anchored on the literal "NO-CONTEXT:" hyphen + colon substring. The disjoint
-     "NO_CONTEXT:{id}" underscore form lives in src/live/fork.rs (fork failure path)
-     and MUST NOT match. If src/live/context.rs's emission text is ever refactored,
-     this skill predicate MUST be updated in lockstep. -->
+- If `psyche-download`'s stderr contains the literal substring `NO-CONTEXT:<id>`, enter the **first-commune flow** below before doing anything else with this agent. This is the FRESH-02 trigger; the same flow is reached from the `kind:"prompt-new"` arm under [ID Recollection Step 2](#step-2-dispatch-on-kind) (FRESH-01). One unified surface, two trigger paths.
 
 ### First-commune flow (FRESH-01 / FRESH-02 / FRESH-03)
 
@@ -219,7 +187,9 @@ Fire a SINGLE `AskUserQuestion` with these fields:
 - **header**: `First commune`
 - **question**: `Here is a summary of my first context as live agent <agent_id>. Anything I should add, or proceed to init?` (substitute `<agent_id>` from context)
 - **options**: exactly one option — `label: "Proceed to init"`, `description: "Start the agent now with the summary above as initial context"`
-- **body_addendum**: the `{first commune summary}` string you synthesize per the next bullet. Do NOT add an explicit "Other" option — `AskUserQuestion`'s native free-text "Other" input captures additions.
+- **body_addendum**: the `{first commune summary}` string you synthesize per the next bullet.
+
+Note: `AskUserQuestion`'s native free-text "Other" input captures additions.
 
 **Synthesizing `{first commune summary}`**: compose a 4–8 sentence summary combining two sources, in order:
 
@@ -230,15 +200,14 @@ The same synthesis path is used regardless of trigger (Phase 33 D-02 — FRESH-0
 
 **Handling the response**:
 
-- **"Proceed to init"** with no native-Other free-text addition: run `$LIVE start <id>` (or, if Step 1 already ran, proceed in-flow). The first commune is the synthesized summary itself, delivered by the natural state of the agent.
-- **"Proceed to init"** with native-Other free-text addition: append the user's free-text to the summary, then run `$LIVE start <id>`, then — after start succeeds — use the **Write tool** to create `.claude/<id>-commune.md` with the augmented summary as its body. This is the canonical first-commune path (see `/spt:commune`): Self's listener polls for the file, the Psyche wrapper composes the v1.8 EVENT envelope, and the file is deleted on successful ingest.
+- **"Proceed to init"** Run `$LIVE start <id>` (or, if Step 1 already ran, proceed in-flow). If there is any native-Other free-text addition, synthesize the user's free-text into the summary. Then — after start succeeds — use the **Write tool** to create `.claude/<id>-commune.md` with the augmented summary as its body. This is the canonical first-commune path (see `/spt:commune`): Psyche absorbs the file, which is then deleted on successful ingest.
 - **Cancel** (no option chosen): exit silently — matches the existing `kind:"prompt-new"` cancel semantics; do not re-prompt.
 
 ### Drift detection (Phase 23 v1.8)
 
-As of v1.8 Phase 23, `$LIVE psyche-download <id>` may emit a `<psyche-stamp/>` block (the 5-field stamp captured at the last live_context.md write) and ALWAYS emits a `<current/>` block (live stamp values plus `commits_since` and `commits_unpulled` deltas). When `<current project>` equals `<psyche-stamp project>` AND any of `branch` / `head_sha` / `machine` differ, an HTML-comment ATTENTION SELF directive is appended instructing you to fire `AskUserQuestion`.
+`$LIVE psyche-download <id>` may emit a `<psyche-stamp/>` block (5 fields) and ALWAYS emits a `<current/>` block (live stamp values plus `commits_since` and `commits_unpulled` deltas). When `<current project>` equals `<psyche-stamp project>` AND any of `branch` / `head_sha` / `machine` differ, an HTML-comment ATTENTION SELF directive is appended instructing you to fire `AskUserQuestion`.
 
-The exact directive text emitted (quote it verbatim when matching — this is the locked `SAME_PROJECT_DRIFT_DIRECTIVE` from `src/live/context.rs`):
+The directive text emitted:
 
 ```text
 <!-- ATTENTION SELF: this project has advanced since your last commune/signoff.
@@ -251,7 +220,6 @@ Fire AskUserQuestion with:
     - "Observe new commits"
     - "Skip for now"
     - "Don't ask again"
-NOTE: "Peek at peer contexts" option is NOT YET AVAILABLE in v1.8 Phase 23 and MUST NOT be offered.
 -->
 ```
 
@@ -263,9 +231,7 @@ When you see this comment, fire `AskUserQuestion` with the header / question / m
   ```bash
   $LIVE suppress-drift <self_id> <project>
   ```
-  where `<self_id>` is your own owl ID and `<project>` is the value from the `<current project="...">` attribute. Subsequent psyche-downloads for the same `(self_id, project)` pair will skip the directive (the `<psyche-stamp/>` and `<current/>` blocks still emit — only the ATTENTION SELF comment is suppressed).
-
-**Do NOT offer a `Peek at peer contexts` option in Phase 23** — it is reserved for Phase 24/25 when peer-context discovery lands. The directive's NOTE line states this explicitly; honour it.
+  where `<self_id>` is your own owl ID and `<project>` is the value from the `<current project="...">` attribute. Subsequent psyche-downloads for the same `(self_id, project)` pair will skip the directive.
 
 **Cross-project resume (D-10):** when `<current project>` differs from `<psyche-stamp project>`, the ATTENTION SELF directive is NOT emitted (silent by design). You should still NOTICE the project mismatch by reading the two blocks, but do not prompt the user.
 
@@ -274,17 +240,13 @@ When you see this comment, fire `AskUserQuestion` with the header / question / m
 Follow the same message handling protocol as `/spt:ready`. Messages arrive on TWO orthogonal paths:
 
 1. **Parse the envelope.**
-   - **Primary (Monitor stream) / Fallback (Bash `--once`)**: stdout carries a single `<EVENT>` line per delivery. Four shapes:
+   - stdout carries a single `<EVENT>` line per delivery. Four shapes:
      - `<EVENT type="msg" from="<sender-id>">body</EVENT>` — regular message; `from` attribute = sender ID.
-     - `<EVENT type="alarm" target-time="<ISO-8601>" current-time="<ISO-8601>">body</EVENT>` — self-originated timed alarm (per D2.b, no `from`).
-     - `<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>` — auto-fired echo-commune brief from the Psyche wrapper, emitted after a SessionStart-triggered `/clear` or `/compact` cycle (Phase 29 AUTO-EC). `from` is the psyche-id (`<self-id>-psyche`); `note` carries the trigger source (e.g., `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, `"Echo commune — orphan teardown"`). Body is the haiku-model summary wrapped in the Phase 25 D-10/D-11 two-slice envelope: `<live-context>...</live-context>` plus (when the Psyche resolved a tracked project) `<project-context>...</project-context>`. After `<br>`-split and HTML-unescape per `/spt:ready` body-parsing rules below (lines 169–173 of that file), the two slices form a single SessionStart resume brief — absorb both as one continuous context (D-25.1-05). For the authoring side of the same two-slice contract, see `/spt:commune` → `## Two-slice body shape (Phase 25 D-10/D-11)` and `psyche.md` §`<output_envelope>` for the canonical per-slice taxonomy.
-     - `<EVENT type="init_signoff" timestamp="<ISO-8601>">body</EVENT>` — Self-initiated signoff event (Phase 18.4 / quick-260513-v8f). No `from` attribute — signoff is self-originated. Body carries the signoff context.
-     - Body parsing (applies to all four types — same escape conventions): split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
-     - **Parsers MUST treat the `type` attribute value case-insensitively** (e.g., `echo_commune`, `ECHO_COMMUNE`, and `Echo_Commune` are equivalent). The emitter writes lowercase; the case-insensitive predicate provides forward-compat headroom.
+     - `<EVENT type="alarm" target-time="<ISO-8601>" current-time="<ISO-8601>">body</EVENT>` — self-originated timed alarm.
+     - `<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>` — auto-fired echo-commune brief from your Psyche, emitted after a SessionStart-triggered `/clear` or `/compact` cycle. `note` carries the trigger source. Body is your context summary wrapped in a two-slice envelope: `<live-context>...</live-context>` plus (when the Psyche resolved a tracked project) `<project-context>...</project-context>`. After `<br>`-split and HTML-unescape per `/spt:ready` body-parsing rules, the two slices form a single SessionStart resume brief — absorb both as one continuous context.
+     - Body parsing: split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
    - **Hook path (orthogonal)**: when you are busy mid-tool-call, PreToolUse injects `<owl_messages>...</owl_messages>` XML into your tool context. Read the `from` attribute as sender ID. Same handling.
 2. **Reply** via `$OWL send --reply-to <sender-id>`.
-3. **Primary (Monitor)**: continue — the stream stays alive automatically; the next event will arrive on the same Monitor task. The same applies to direct event delivery and to hook-delivered messages — no re-register needed at all under stream mode.
-4. **Fallback (Bash + `--once`)**: re-register `$OWL poll <id> listen --live --once` as a fresh Bash background task (with `run_in_background: true`). Hook-delivered messages on the fallback path do not require re-register because the underlying Bash poll is still running between events.
 
 ---
 
@@ -361,8 +323,6 @@ When the user picks **Cancel** in any post-resolve `AskUserQuestion`, do NOT loo
 
 ### Notes
 
-- This flow REPLACES the old `sleep 10 [ID SELECT TIMER]` race. There is no auto-pick-on-timer.
-- The `pick-spec` command is **read-only** — invoking it does not bump activity timestamps. Only `start`, `revive`, `commune`, `echo-commune`, and SessionStart re-attach do.
 - The explicit-id path (`/spt:live <id>`) bypasses this flow entirely and behaves exactly as documented in Step 1 above.
 
 ---
@@ -370,23 +330,20 @@ When the user picks **Cancel** in any post-resolve `AskUserQuestion`, do NOT loo
 ## Edge Cases
 
 - **Duplicate `/spt:live`**: Rejects with `COLLISION`. Check `/spt:list-agents` first, or use `/spt:revive`.
-- **Psyche process dies**: Perch becomes stale. `/spt:list-agents --psyches` cleans it. Use `/spt:revive` to restart.
-- **Psyche spawn failure**: Start command logs error but continues. Listener works without pulse nudges.
-- **Pulse timer**: Integrated into `$OWL poll` via `--pulse-interval <seconds>`. Emits `PULSE_TRIGGER` on expiry.
-- **Psyche messages to Self**: `PULSE ({timestamp}): {reminders}` -- contextual nudges, not commands.
+- **Psyche process dies**: Use `/spt:revive` to restart.
+- **Psyche spawn failure**: Start command logs error but continues. Listener poll runs without your Psyche.
 - **INSIGHT messages from Psyche**: `INSIGHT ({timestamp}): {observation}` -- high-priority observation about your work. Psyche only sends INSIGHTs for contradictions between stated intentions and actions, forgotten commitments, reasoning gaps, or extended time without progress. Read carefully and adjust if warranted. If the INSIGHT seems incorrect or confused, reply to clarify so you and your Psyche stay on the same page.
-- **Generation tracking**: Each start/revive increments a counter file inside the owlery dir (`{SPT_HOME}/owlery/.psyche-gen-{id}`); resolved at runtime by `owl.exe` via `owlery::owlery_dir()`.
 
 ---
 
-## Listener Best Practices
+## Live Agent Best Practices
 
 ### Stay idle for fastest delivery
 
 Messages arrive fastest when you are **idle** (not executing a tool call) -- the background poll delivers them instantly. When you are busy, messages still arrive via the PreToolUse hook but with slight delay (next tool call boundary).
 
 - **Always launch Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely -- no messages can be delivered until the agent finishes.
-- **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed.
+- **Launch work as background tasks** (`run_in_background: true`) when results aren't immediately needed or when the task may take longer than a few seconds to finish.
 - **Go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
 - **Batch independent work into parallel background tasks** rather than sequential foreground calls.
 

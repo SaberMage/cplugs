@@ -1,8 +1,8 @@
 ---
 name: ready
 description: |
-  Start a ready agent (poll listener serving a perch). Use when the user says "listen as",
-  "start listening", or wants to receive inter-agent messages.
+  Enable inter-agent messaging for the current session.
+  Use when the user says "listen as", "ready as", or wants to receive inter-agent messages.
 argument-hint: "<id> [--reboot] [--block] [--once]"
 allowed-tools: [Bash, Read, Monitor]
 ---
@@ -15,14 +15,14 @@ All commands use `$OWL` env var, auto-injected by the plugin's SessionStart hook
 
 > **Identity auto-detection:** Your identity is auto-detected from your session for messaging commands. Pass your ID explicitly only if auto-detection fails.
 
-The `<id>` is a short, single-word identifier (e.g. `deployah`, `waffle`).
+Starting a ready agent session is a single background task. From then on, the ready agent id becomes your name.
 
 ## Messaging Command Reference
 
 All three commands read the message body from **stdin** (pipe or heredoc).
 
 ```bash
-# send -- fire-and-forget to a target (use when you have your own perch)
+# send -- fire-and-forget to a target (use when you have an active session)
 $OWL send <target> <<'EOF'
 message body
 EOF
@@ -53,46 +53,14 @@ $OWL poll <id> [mode] --setup
 
 The `--setup` flag creates the perch (inbox, ready file) before polling. Use on the **first** call. Mode: `listen` (default), `wait` (for `--block`), `once` (for `--once`). Under stream mode (default, no `--once`) the listener stays alive across messages and emits one `<EVENT>` envelope line per delivery to stdout.
 
-The binary reports its version in the READY status line (e.g., `READY:myid (spt v0.1.0)`). Mention this version when telling the user you're listening.
+### Invocation (Monitor)
 
-## Re-poll (after handling a message)
-
-### Primary (Monitor stream)
-
-No re-register needed. Under stream mode the Monitor task running `$OWL poll <id>` stays alive across messages and emits one `<EVENT>` envelope line per delivery. Continue idling; the next event will arrive on the same stream.
-
-### Fallback (Bash + `--once`)
-
-If the Monitor tool is unavailable and you are running via Bash `run_in_background: true` with `--once`, the background task exits after each delivered message. You MUST re-register with:
-
-```bash
-$OWL poll <id> [mode] --once
-```
-
-Run with `run_in_background: true` and `description: "« spt event »"`. Omit `--setup` -- the perch already exists.
-
-## Common rules
-
-### Primary (Monitor)
-
-Invoke `$OWL poll <id> [mode] [--setup]` via the Monitor tool with:
-- `command: "$OWL poll <id> [mode] [--setup]"`
+Invoke `$OWL poll <id> --setup` via the Monitor tool with:
+- `command: "$OWL poll <id> --setup"`
 - `persistent: true`
 - `description: "« spt event »"`
 
-Each delivered event arrives as a single stdout line containing one `<EVENT>` envelope. The stream stays alive across messages -- you do NOT re-register after each event.
-
-### Fallback (Bash)
-
-Invoke `$OWL poll <id> [mode] --once` via the Bash tool with:
-- `run_in_background: true`
-- `description: "« spt event »"`
-
-Append `--once` to the command. The background task exits after the first message -- re-register per the [Fallback section above](#fallback-bash---once) after every event.
-
-- **Default**: Tell the user you're listening, then **return control immediately**. Handle the message when the background task interjects.
-- **`--block`**: Tell the user you're waiting. Do nothing else until a message arrives.
-- **`--once`**: Same as default, but after handling one message, run `/spt:force-stop` instead of re-registering. This is the legacy one-shot mode; Bash fallback callers must pass `--once` explicitly.
+`$OWL poll` enters the poll loop inline; the stream stays alive across messages and emits one `<EVENT type="msg" ...>body</EVENT>` line per delivery. See [On message arrival](#on-message-arrival) for the full envelope-type catalog.
 
 ## Active Listener Checklist
 
@@ -114,34 +82,8 @@ Your Monitor-tool task running `$OWL poll <id>` emits one stdout line per delive
 ```
 <EVENT type="msg" from="<sender-id>">body</EVENT>
 ```
-- `from` attribute = sender ID (no `__REPLY_TO__` parsing needed).
+- `from` attribute = sender ID.
 - Body is between the tags.
-
-**Self-originated timed alarm:**
-```
-<EVENT type="alarm" target-time="<ISO-8601 target>" current-time="<ISO-8601 fire>">body</EVENT>
-```
-- No `from` attribute -- alarm is self-originated.
-- `target-time` = when the alarm was scheduled to fire (ISO-8601).
-- `current-time` = the instant the listener actually fired it (ISO-8601). Drift = current − target.
-- Body is the alarm message text.
-
-**Auto-fired echo-commune brief (Phase 29 AUTO-EC):**
-```
-<EVENT type="echo_commune" from="<self-id>-psyche" timestamp="<ISO-8601>" note="<descriptor>">body</EVENT>
-```
-- `from` = psyche-id (`<self-id>-psyche`) — the Psyche wrapper authored the brief.
-- `timestamp` = ISO-8601 instant the brief was composed.
-- `note` carries the trigger source: `"Echo commune brief — auto-fired on clear"`, `"Echo commune brief — auto-fired on compact"`, or `"Echo commune — orphan teardown"`.
-- Body is the haiku-model summary of recent COMMUNE activity. Receivers (Self listeners + Psyche-inbox absorption) parse it identically to other envelopes.
-
-**Self-initiated signoff:**
-```
-<EVENT type="init_signoff" timestamp="<ISO-8601>">body</EVENT>
-```
-- No `from` attribute -- signoff is self-originated (Phase 18.4 / quick-260513-v8f).
-- `timestamp` = ISO-8601 instant the signoff was emitted.
-- Body carries the signoff context (final write-to-live_context.md trigger for the Psyche wrapper).
 
 **Chunked deliveries (EVENT-PART):**
 
@@ -155,7 +97,7 @@ Bodies exceeding the per-event display cap (~500 chars on the Claude Code Monito
 - `id="<8-hex-nonce>"` — short hex id (8 chars from `next_event_part_id` in `src/owl/poll.rs`) that groups parts of one logical event. Appears on EVERY part.
 - The original envelope attributes (`type`, `from`, `timestamp`, `note` — whichever applied to the un-chunked envelope) appear **ONLY on `seq="1/M"`**. Subsequent parts (K>1) carry only `seq` and `id` to save bytes.
 
-**Reassembly rules (REQUIRED — these are not suggestions):**
+**Reassembly rules (REQUIRED):**
 
 1. Collect all parts sharing the same `id`. Order them by the numerator of `seq` (K). Verify the count of parts equals the denominator (M).
 2. Concatenate the chunk contents in seq order (K=1, K=2, …, K=M) to recover the **escaped** body.
@@ -164,19 +106,13 @@ Bodies exceeding the per-event display cap (~500 chars on the Claude Code Monito
 
 **Orphan-part rule:** If `seq="K/M"` arrives **without** a matching `seq="1/M"` carrying the same `id` (because earlier parts were lost across a session boundary, listener restart, or binary handoff), **drop the orphan parts silently**. Do NOT attempt partial delivery — a truncated body is worse than no body. Optionally surface a single stderr-side warning for diagnostics.
 
+If `N...[end]` EVENT-PARTs are missing, you must use the Task Output tool to check for the rest.
+
 **Adjacency assumption:** In Monitor stream mode all parts of one `id` are emitted in a single `println!` loop on the sender side with no thread sleep between them — they arrive within a few hundred ms. A receiver that has buffered some parts with the same `id` for ≥5 seconds without seeing all M can safely treat the missing parts as orphaned.
 
 **Body parsing rules (apply to ALL four envelopes AND to reassembled EVENT-PART bodies):**
 1. Split the body on the literal `<br>` token to recover newlines.
 2. HTML-unescape each fragment in this order: `&lt;` → `<`, then `&gt;` → `>`, then `&quot;` → `"`, then `&amp;` → `&` **last** (so embedded `&amp;lt;` sequences don't double-decode into `<`).
-
-**Parsers MUST treat the `type` attribute value case-insensitively** (e.g., `echo_commune`, `ECHO_COMMUNE`, and `Echo_Commune` are equivalent). The emitter writes lowercase; the case-insensitive predicate provides forward-compat headroom.
-
-The stream stays alive across deliveries -- do not re-register.
-
-### Path A (fallback): Bash `--once` EVENT envelope
-
-If you launched via the Bash fallback with `--once`, you receive the **same** `<EVENT>` envelope on stdout (per the wire-format invariant: `--once` is purely an exit gate, not a format gate). Parse it identically to the primary path above. The only difference: the process exits after one event, so you MUST re-register a fresh background task (see [Common rules / Fallback](#fallback-bash)).
 
 ### Path B (orthogonal): Hook-injected XML
 When you are busy with a tool call, the PreToolUse hook drains pending messages and injects them as XML in your tool call context:
@@ -185,7 +121,7 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
 <owl_message from="sender-id" priority="high">message body</owl_message>
 </owl_messages>
 ```
-- The `from` attribute IS the sender ID (no `__REPLY_TO__` parsing needed).
+- The `from` attribute IS the sender ID.
 - The message body is inside the tag.
 - You may receive a `[OWL SYSTEM - HIGHEST PRIORITY]` directive -- follow it.
 
@@ -199,9 +135,7 @@ When you are busy with a tool call, the PreToolUse hook drains pending messages 
    EOF
    ```
    If auto-detection fails, pass your ID explicitly: `$OWL send --reply-to <sender-id> <my-id>`
-4. **Primary (Monitor stream)**: Continue -- the stream stays alive automatically; the next event will arrive on the same Monitor task.
-5. **Fallback (Bash `--once`)**: Re-register the same command (with `--once`) as a fresh background task. If the original was `--block`, re-register and wait again. If the original was the explicit one-shot `--once` flow, run `/spt:force-stop` instead.
-6. Tell the user what happened and resume prior work.
+4. Tell the user what happened and resume prior work.
 
 ## /spt:ready --reboot
 
@@ -209,14 +143,14 @@ The reboot flow is no longer a user-facing skill -- to restart a listener call `
 
 ---
 
-## Active Listener Rules
+## Ready Agent Rules
 
 ### Stay idle -- this is mandatory
 
 You MUST stay idle whenever possible. Idle means not executing a tool call -- the background poll delivers messages instantly during idle gaps. When you are busy, messages arrive via the PreToolUse hook but only at the next tool call boundary (delayed).
 
-- **You MUST launch ALL Agent tool calls with `run_in_background: true`** when you have an active perch. Foreground agents block your poll loop entirely -- no messages can be delivered until the agent finishes.
-- **You MUST launch work as background tasks** (`run_in_background: true`) when results are not immediately needed.
+- **You MUST launch ALL Agent tool calls with `run_in_background: true`** when you have an active ready agent session. Foreground agents block your poll loop entirely -- no messages can be delivered until the agent finishes.
+- **You MUST launch work as background tasks** (`run_in_background: true`) when results are not immediately needed or when the task may take longer than a few seconds to finish.
 - **You MUST go idle after launching.** The idle gap is when poll-path messages get delivered instantly.
 - **You MUST batch independent work into parallel background tasks** rather than sequential foreground calls.
 
@@ -243,4 +177,4 @@ When you see `<owl-auto-resume id="..." live="...">`:
 
 **Do not resume automatically.** The tag informs -- the user decides.
 
-**After resuming:** Your perch is active again. From this point, always launch Agent tool calls with `run_in_background: true` so your poll loop stays unblocked and messages can be delivered.
+**After resuming:** Your ready session is active again. From this point, always launch Agent tool calls with `run_in_background: true` so your poll loop stays unblocked and messages can be delivered.

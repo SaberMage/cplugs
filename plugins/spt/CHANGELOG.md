@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.19] - 2026-05-27
+
+### Fixed
+- **`/psyche-sync-setup` no longer aborts on a re-run or against a stale remote.** Two idempotency gaps in the setup flow (`accept_flow`) could leave cross-machine sync un-enableable after any partial first attempt. (a) If a prior run had already wired an `origin` remote — and because git worktrees share one config, a single agent/project worktree wiring it counts — the setup's `git remote add origin <url>` silently no-op'd, so a stale or wrong backup URL survived and the seeding `git push --all` hit `Repository not found` (404) and exited 1. Origin is now wired authoritatively: each worktree gets `remote add` followed by an unconditional `remote set-url`, so the remote always points at the canonical `https://github.com/<user>/spt-agent-storage.git`. (b) If the GitHub repo already existed (a prior run created it but failed before persisting `state=Enabled`), `gh repo create` exited nonzero with "Name already exists" and the whole flow aborted; that stderr is now treated as idempotent success (checked after the unchanged missing-scope / HTTP 403 browser-fallback path), so re-running setup completes instead of dead-ending. Both git calls remain soft-failed; the `$OWL psyche-sync-setup` exit-code contract is unchanged.
+
+### BTS
+- Quick `260527-6ah`: `src/common/sync.rs` `accept_flow` Step 1 (case-insensitive `"already exists"` fall-through to success) + Step 4 (add-then-unconditional-`set-url` per worktree). Two new `#[cfg(unix)]` `fake_gh` regression tests (`accept_flow_repo_exists_is_idempotent`, `accept_flow_corrects_stale_worktree_origin`), excluded from Windows CI per existing convention. `cargo build --release` clean; `cargo test --lib common::sync` 23/23. Diagnosed from a live Windows failure where a leftover `origin=https://github.com/u/spt-agent-storage.git` poisoned setup; the affected runtime was recovered out-of-band (origin `set-url` → correct URL, `push --all`, per-branch upstream, `settings.json sync.state=enabled`) and verified via `$OWL doctor`. Commits `b7668dd`, `e4ceca4`.
+
 ## [1.11.18] - 2026-05-27
 
 ### Fixed

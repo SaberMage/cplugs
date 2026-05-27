@@ -4,6 +4,15 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.18] - 2026-05-27
+
+### Fixed
+- **Cross-machine sync offer now actually renders.** The session-start prompt that offers to enable Psyche sync ("Enable now / No, never / Remind me in 12h") never appeared — it was written as passive SessionStart context that Claude receives but does not act on. It now arrives as an active in-session message on the live agent's own channel, so the offer surfaces on `$LIVE start`/`revive` and on a `/clear`|`/compact` boundary (live agents only; plain startups stay silent).
+- **`$OWL doctor` no longer shows green for a failing sync.** A per-agent sync row with recorded failures could display PASS once its retry backoff window elapsed. Failing rows now read WARN (failures, no active retry) or FAIL (retry pending or hard stop) and surface the failure reason.
+
+### BTS
+- Phase 35 SC1 gap-closure (plan 35-10): new `src/owl/sync_prompt.rs` active-delivery module carrying a self-contained `<instructions>` envelope (mirrors the version-change pattern); both triggers rewired through it; the `.sync-prompt-due` sentinel + `queue_sync_prompt_if_due` passive path removed; always-loaded `<spt-psyche-sync-prompt>` handler added to `live/SKILL.md`; render-path test (`tests/sync_prompt_render.rs`) asserts the spool row + envelope content — the test gap that let the defect ship; operator-UAT wording corrected to the active-delivery model. 5 commits. Cross-machine + in-session render validation remains operator UAT (`35-HUMAN-UAT.md`).
+
 ## [1.11.17] - 2026-05-26
 
 ### Added

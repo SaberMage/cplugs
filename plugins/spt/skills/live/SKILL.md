@@ -134,7 +134,7 @@ Then surface the "next body of work" to the user. Scan the psyche-download stdou
 
 **If no match is found**: synthesize a 1-2 sentence "Here's where we left off; next step looks like X" summary from the psyche-download output (read the whole download, distill the most-recent commitments + pending threads) and print the synthesis under the same heading.
 
-Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesis is the fallback. Last-commune content is explicitly NOT used for this surface — it's too noisy and often stale relative to the agent's current intent.
+The structured-marker scan comes first; Claude synthesis is the fallback. Last-commune content is explicitly NOT used for this surface — it's too noisy and often stale relative to the agent's current intent.
 
 ## Step 1: Start in background
 
@@ -247,6 +247,18 @@ Follow the same message handling protocol as `/spt:ready`. Messages arrive on TW
      - Body parsing: split on literal `<br>` to recover newlines, then HTML-unescape each fragment (`&lt;` → `<`, `&gt;` → `>`, `&quot;` → `"`, `&amp;` → `&` **last**, to avoid double-decoding).
    - **Hook path (orthogonal)**: when you are busy mid-tool-call, PreToolUse injects `<owl_messages>...</owl_messages>` XML into your tool context. Read the `from` attribute as sender ID. Same handling.
 2. **Reply** via `$OWL send --reply-to <sender-id>`.
+
+### Handling the `<spt-psyche-sync-prompt>` envelope
+
+When an `<owl_messages>` injection or an `<EVENT type="msg">` body contains a `<spt-psyche-sync-prompt>` element (delivered actively to your perch on `$LIVE start`/`revive` and on a `/clear`|`/compact` boundary), it carries a self-contained `<instructions>` element. **That `<instructions>` element is authoritative** — follow it exactly, the same way you treat the `<instructions>` inside a `<spt-version-changelog>` envelope.
+
+The instructions direct you to render an `AskUserQuestion` with EXACTLY these three options (labels verbatim, do not paraphrase):
+
+- **`Enable now`** → run `/psyche-sync-setup` to configure the private GitHub repo and enable cross-machine Psyche context sync.
+- **`No, never`** → the sync is marked declined; you will not be re-prompted. Acknowledge briefly and continue. (The decline is recorded automatically by the sync state machine — no manual settings edit needed.)
+- **`Remind me in 12h`** → defer the offer. Acknowledge briefly and continue. (The 12h cooldown is recorded automatically.)
+
+This handler is always loaded with the skill — it is belt-and-suspenders. The embedded `<instructions>` element already carries the full directive, but this section guarantees an always-present handler so the envelope is actioned even independent of the embedded text. Do NOT reply to the `psyche-sync-prompt` pseudo-sender — it is an informational hook origin, not a real perch.
 
 ---
 

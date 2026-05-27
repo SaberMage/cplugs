@@ -1,7 +1,7 @@
 ---
 name: signoff
 description: |
-  Graceful live agent shutdown with final context summary. Use when the user
+  Graceful live agent shutdown with final Psyche context save. Use when the user
   says "sign off", "graceful stop", or wants to cleanly end a live session.
 argument-hint: ""
 allowed-tools: [Bash, Write]
@@ -20,9 +20,9 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
    $LIVE psyche-download <your-id>
    ```
 
-   > **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content.
+   > **Output truncation.** If the Bash tool reports `Output too large (N KB)` and saves the full result to a `tool-results/<id>.txt` file, use the `Read` tool on that saved path to access the full content. Do NOT re-run `psyche-download` to grep/awk out sections — repeated invocations re-download the same context, waste tokens, and may duplicate `## Pending Commune` sections in `live_context.md`.
 
-2. **Diff your knowledge against this fresh download** — only *what's missing from it* belongs in the FINAL COMMUNE body (work completed, decisions made, intentions formed). Anything already absorbed is not.
+2. **Diff your knowledge against this fresh download** — only what's missing from *it* belongs in the FINAL COMMUNE body (work completed, decisions made, intentions formed). Anything already absorbed is not.
 
 3. **Sign off** -- use the **Write tool** to create
    `.claude/{your-id}-signoff.md`. Do not use Bash/heredoc -- Write is the
@@ -33,18 +33,26 @@ All commands use `$LIVE` env var, auto-injected by the plugin's SessionStart hoo
      string as its contents.
    - **Signoff with a FINAL COMMUNE body**: Write the file with the final
      commune body as its contents — the body MUST be wrapped in the same
-     two-slice envelope as a regular commune (see `## Two-slice body shape`
-	 below, or `/spt:commune` for the full teaching).
+     two-slice envelope as a regular commune (see `## Two-slice body shape
+     (Phase 25 D-10/D-11)` below, or `/spt:commune` for the full teaching).
+     That body is prepended to INIT_SIGNOFF when Psyche absorbs it.
 
-	 Your live agent listener detects the file, notifies your Psyche wrapper,
-	 prints `STOP:{your-id} (signoff dropped)`, and exits cleanly. The Psyche
-	 wrapper independently consumes the file and tears itself down.
+   Your Self listener detects the file, sends a file-drop notification to your
+   Psyche wrapper, prints `STOP:{your-id} (signoff dropped)`, and exits cleanly
+   (code 0 — so Claude Code does not surface the listener termination as
+   "failed"). The Psyche wrapper independently consumes the file, composes an
+   INIT_SIGNOFF envelope (with FINAL COMMUNE if the body is non-empty), runs
+   its final Psyche session, and tears itself down.
 
-   **Offline path (no live listener):** If no session is currently live for
-   your agent, the dropped `.claude/{your-id}-signoff.md` simply persists on
-   disk. The next time anyone runs `$LIVE psyche-download <your-id>`, that
-   signoff body reflected under a `## Pending Signoff (written {mtime})`
-   header. This is the way to record post-session-end context updates.
+   **Offline path (no live listener):** If no perch is currently live for your
+   agent (no `ready` file under `{SPT_HOME}/owlery/<your-id>/`), the dropped
+   `.claude/{your-id}-signoff.md` simply persists on disk. The next time anyone
+   runs `$LIVE psyche-download <your-id>`, that signoff body is absorbed into
+   the on-disk psyche-context under a `## Pending Signoff (written {mtime})`
+   header and the drop file is deleted. This replaces the deprecated
+   `/spt:amend-signoff` workflow — there is now ONE way to record
+   post-session-end context updates: drop the file with the Write tool, let
+   the next `psyche-download` absorb it.
 
 ## Two-slice body shape (Phase 25 D-10/D-11)
 

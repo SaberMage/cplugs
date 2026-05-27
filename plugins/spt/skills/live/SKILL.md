@@ -134,7 +134,7 @@ Then surface the "next body of work" to the user. Scan the psyche-download stdou
 
 **If no match is found**: synthesize a 1-2 sentence "Here's where we left off; next step looks like X" summary from the psyche-download output (read the whole download, distill the most-recent commitments + pending threads) and print the synthesis under the same heading.
 
-The structured-marker scan comes first; Claude synthesis is the fallback. Last-commune content is explicitly NOT used for this surface — it's too noisy and often stale relative to the agent's current intent.
+Per CONTEXT D-05 + D-06: the structured-marker scan comes first; Claude synthesis is the fallback. Last-commune content is explicitly NOT used for this surface — it's too noisy and often stale relative to the agent's current intent.
 
 ## Step 1: Start in background
 

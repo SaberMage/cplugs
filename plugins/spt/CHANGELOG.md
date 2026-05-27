@@ -4,6 +4,16 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.17] - 2026-05-26
+
+### Added
+- **Cross-machine context sync (opt-in).** A new `/psyche-sync-setup` flow backs up a live agent's context to a private GitHub repo, so the same agent can resume with its history on another machine. On session start, SPT now offers to enable sync if you haven't set it up yet.
+- **`$OWL doctor` sync status.** `doctor` now reports a Sync section — whether cross-machine sync is enabled, the backup remote, and any recent sync failures with their retry timing.
+
+### BTS
+- Phase 35 implementation: settings.json sync namespace data layer, `src/common/sync.rs` subprocess facade, Unix detached-spawn helper, UserPromptSubmit async-pull dispatch, post-commit pull-then-push + lazy-worktree remote inheritance wired into `tracked.rs`, plus four `cargo test --test sync_*` integration suites and a two-machine operator UAT runbook. 28 commits across 9 plans / 5 waves.
+- Published mid-v1.8-milestone (off the normal milestone-close bump cadence) to provide an installable build for the two-machine operator UAT. Cross-machine sync ships in this build but is not yet validated against real GitHub — that is what the UAT covers.
+
 ## [1.11.16] - 2026-05-25
 
 - **Live psyche poll stability fix.** Wrapper-owned psyche poll (the `psyche && parent.is_some()` path, spawned every wrapper iteration) now skips the DUPLICATE listener guard and writes a schema-minimal `{"pid": <int>}` info.json. Fixes a Windows PID-recycling false positive that tripped the 3-consecutive-empty-exit backstop and crashed the live wrapper (debug session `echo-gate-poll-exit-sentinel-triad`, Symptom 2), and stops a cross-session `OWL_SESSION_ID` inheritance leak into the nested psyche perch. `get_pid_from_info` / `get_parent_pid_from_info` migrated to `serde_json::Value` lookups so both legacy and minimal info.json shapes parse. No change to Self / Listener / Live / Spine / Touch / Working perches. Commit `6342852`.

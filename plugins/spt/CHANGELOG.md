@@ -4,6 +4,20 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.21] - 2026-05-28
+
+### Fixed
+- **`$OWL list` can no longer accidentally delete perch directories.** A read command should never mutate state; before this release, `list` could `rm -rf` an orphan-classified perch dir as a side effect, occasionally taking healthy in-flight psyche perches with it. `list` is now strictly read-only.
+- **`$OWL list` no longer mis-classifies in-flight psyche workers as orphans on Windows.** Windows PID recycling could make a live psyche perch's info.json look stale during a poll-rewrite race; `list` now consults wrapper liveness plus a 60-second mtime grace before flagging anything as an orphan.
+- **`$OWL doctor --fix` stale-perch sweep no longer demotes healthy live agents.** Previously, the sweep removed the `ready` sentinel from a wrapper-owned psyche perch whose info.json carried a recycled PID, briefly knocking the agent offline. The sweep now skips perches whose wrapper is alive.
+
+### Added
+- **`$OWL list` reports orphan-perch count.** When any orphan-perch directories are present, `list` prints a hint suggesting `$OWL doctor --fix` to clean them up. `$LIVE list` does not emit the hint.
+- **`$OWL doctor --fix` garbage-collects orphan perch directories.** Nested perch dirs are soft-cleaned (sentinel removed); top-level orphan dirs are hard-deleted. A safety guard refuses to wipe a top-level dir that still hosts non-empty `nested/` children — the cascade-wipe class this release was built to eliminate.
+
+### BTS
+- Phase 35.1: 8 production `fs::write(info.json)` sites converted to atomic write (tmp + rename) with a source-order regression test that mechanically prevents reintroduction; new `is_wrapper_alive(self_id)` + `PHASE35_LIST_ORPHAN_GRACE_SECS=60` primitives in `src/common/owlery.rs`; `list_filter::collect` lost its `cleanup_orphans` parameter and gained `orphan_count: usize`; `check_orphan_dirs` walks Layer-1 + Layer-2 with cascade-safe routing; status tag inventory gains `SOFT-CLEANED:id`. 4 plans across 3 waves, 12 code-review fix commits (CR-01 `is_online` no-info short-circuit, CR-02 wrapper-alive bypass parity in `check_stale_perches`, WR-01 drop no-op `Option<Vec>` wrap, WR-03 `check_duplicate_flat_nested` non-empty-nested guard, WR-04 surface `gated_count` in PASS row, WR-05 partial-state stderr detail, WR-06 doc the LIST-NOMUT-01 carve-out, IN-02/IN-04 doc-comment notes, IN-05 reverse `OWL_SESSION_ID` precedence to stdin > env in `hook_subagent_start`). Pre-existing `tests/native_wrapper_state_retry.rs` build error (missing `pulse_psyche` field from pre-35.1 commit `3616ed1`) is not a regression. Code review status: partial — 5 findings skipped per reviewer directive (WR-02 / WR-07 refactor scope, IN-01 / IN-03 / IN-06 cosmetic).
+
 ## [1.11.20] - 2026-05-28
 
 ### Fixed

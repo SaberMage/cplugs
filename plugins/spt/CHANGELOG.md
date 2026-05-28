@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.20] - 2026-05-28
+
+### Fixed
+- **`p-<project>` branches on `spt-agent-storage` now actually carry project content.** A project's psyche-sync branch (`p-<project>`) had its ref pushed to origin at seed-init time but never advanced past that initial commit — no commune carrying `<project-context>` ever landed on it, so the branch was visually identical to "absent" on the GitHub web UI. Root cause: `route_two_slice` in `src/owl/echo_commune.rs` wrote the project `<agent>.md` file into `psyches/tracked/projects/<name>/` *before* calling `commit_project_payload`, which pre-populated the target directory and made the downstream `git worktree add` (both primary and `branch already exists` fallback) abort with `'<path>' already exists`. The worktree never materialized, no commit fired, and the error was silently swallowed as `(payload on disk)`. Fix reorders all 3 production write-sites in `echo_commune.rs`: `ensure_project_worktree` runs FIRST, then `fs::write`, then `commit_project_payload`. A defense-in-depth salvage path in `src/common/tracked.rs::ensure_worktree` also auto-repairs already-broken installs — when a target dir is non-empty and lacks `.git` and both `worktree add` attempts fail with `'... already exists'`, contents move to `<wt>.salvage-<unix_ts>/`, `worktree add` retries, salvaged files restore into the now-real worktree. Existing broken installs heal on the next commune carrying `<project-context>`; no manual recovery required.
+
+### BTS
+- Quick `260527-s8l`: 3 reorder sites in `src/owl/echo_commune.rs` + new salvage branch in `src/common/tracked.rs::ensure_worktree`. Of the 9 grep-matched call sites surveyed across `echo_commune.rs`, `signoff.rs`, `context.rs`, only the 3 in `echo_commune.rs` were production bugs; the rest are test code or read paths (verified before editing). 2 new regression tests (echo_commune reorder RED→GREEN; ensure_worktree salvage round-trip). `cargo build --release` clean; `cargo test --lib` 951 pass / 0 fail / 5 ignored; `cargo test --test handoff_integration` 19/19; `cargo test --test hook_chain` 7/7. Commits `4866fb9`, `2eb23eb`, debug session at `.planning/debug/p-branches-not-pushed-origin.md`.
+
 ## [1.11.19] - 2026-05-27
 
 ### Fixed

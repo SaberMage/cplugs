@@ -88,6 +88,10 @@ $OWL psyche-sync-setup
 Interpret the exit code:
 
 - **0** — success. Surface the `sync enabled; remote=...` line to the user.
+- **1** — generic setup failure (`accept_flow` errored). The binary prints a
+  human-readable error line (no longer a raw Debug struct). Surface that error
+  line to the user verbatim, then offer to run `$OWL doctor` for diagnostics.
+  See **Recovery** below for the ordered next steps.
 - **5** — the gh token is missing the `repo` scope. The binary prints a manual
   browser-create URL. Fire `AskUserQuestion`:
 
@@ -123,6 +127,26 @@ $OWL psyche-sync-setup --disable
 
 This flips the sync state so `$OWL doctor` reports `state=failing` (with reason
 `user-disabled`). Re-run the skill **without** `--disable` to re-enable.
+
+## Recovering from a failed setup
+
+If setup fails (e.g. exit 1) or sync later breaks, work through these in order —
+each is safe and most failures clear at step 1:
+
+1. **Re-run `/spt:psyche-sync-setup`.** Setup is idempotent (D-13): re-running
+   converges partial state and re-attempts whatever step failed. Try this first.
+2. **Run `$OWL doctor`.** It inspects partial state and surfaces a partial-setup
+   Warn row plus any per-branch sync failure reason, so you can see what's wrong
+   before doing anything else.
+3. **Disable, then re-enable.** Run `$OWL psyche-sync-setup --disable` to clear
+   the sync state (escape hatch), then re-run the skill **without** `--disable`
+   to set it up fresh.
+
+If divergence still persists after that, inspect `seed/` under the spt runtime
+root and resolve manually with `git rebase` — this is rare, because Phase 35.2's
+per-ref dispatcher reports each branch's outcome (`PUSHED` / `RECONCILED` /
+`DIVERGED` / `PUSH_FAILED` / `PROBE_FAILED`), and the old
+`git update-ref`-against-the-bare-repo workaround is obsolete.
 
 ## Caveats
 

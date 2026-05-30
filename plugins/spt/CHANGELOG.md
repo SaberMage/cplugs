@@ -4,6 +4,19 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.22] - 2026-05-30
+
+### Fixed
+- **`psyche-sync-setup` failures now show a readable error.** The skill's failure path printed raw Rust debug output (`GitFailed(Nonzero { stderr: "..." })`); it now prints the curated, human-readable error line so you can actually act on it.
+- **Live agents in non-git host projects now back up their project context.** Starting a live agent in a directory that is not a git repository previously skipped syncing that project's tracked context (`psyches/tracked/projects/<name>/`) — the project-name resolver returned nothing outside a git repo. It now falls back to the directory's own name (guarded against ref-unsafe characters), so non-git projects get their context worktree, commit, and push like any other.
+
+### Added
+- **`$OWL doctor` surfaces partial sync setup.** When a setup pushed to the remote but failed at the final settings write (leaving sync "unset"), doctor previously reported a flat "not configured." It now probes the seed repo for a configured origin plus a reachable remote and shows a Warn row pointing you at the idempotent re-run of `/spt:psyche-sync-setup`.
+- **`psyche-sync-setup` skill documents exit code 1 and a recovery path.** The exit-code list now covers code 1 (generic setup failure), and a new "Recovering from a failed setup" section walks through re-run → `$OWL doctor` → `--disable` + re-setup.
+
+### BTS
+- Phase 35.3 (v1.8): D-01 `{:?}`→`{}` flip at `psyche_sync_setup.rs` routed through the existing `SyncError`/`GitError` Display impls, locked by no-debug-syntax regression tests in `sync.rs` + `git.rs` (D-12). Issue 7 fix is a localized guarded basename fallback in `project_name_from_cwd_path` (`owlery.rs`), gated by `validate_id_chars` + psyche-dir rejection; the bug-encoding unit test was rewritten and a traversal-guard test added. Doctor partial-state probe (`check_sync_status`) reuses a new timeout-parameterized `run_git_with_timeout_dur`, detects origin via `git config --file --get remote.origin.url`, and gives `ls-remote` a 2s `SYNC_PROBE_TIMEOUT` network budget (code-review WR-03/WR-04/IN-02 follow-ups). No SyncSettings schema change (backward-compat hard constraint). 4 plans / 2 waves; verification 5/5 must-haves; code review 0 blockers.
+
 ## [1.11.21] - 2026-05-28
 
 ### Fixed

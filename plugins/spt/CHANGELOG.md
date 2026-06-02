@@ -4,6 +4,15 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.24] - 2026-06-02
+
+### Fixed
+- **A busy Psyche no longer disappears from `$OWL list` — or gets killed by checking on it.** While your Psyche was ingesting a commune (its wrapper running a background summary), the perch could read as offline and drop out of `$OWL list`; worse, running `$LIVE list-psyches` during that window could clear the perch's `ready` marker and make the wrapper shut down on its next cycle, taking the Psyche down for good. Psyche liveness now keys on whether the wrapper itself is alive, so a busy Psyche stays visible and is never torn down by a read-only listing command.
+- **Clearer after-`/clear` guidance for live agents.** The session re-orientation text wrongly described a `pid:"BUSY"` listener as "dead" and implied you should rebuild your poll after `/clear`. It now states the truth: a `BUSY` listener is online and mid-delivery; your poll survives `/clear` intact, so do nothing (a `DUPLICATE` on a re-arm attempt is proof it is still alive); never use `$LIVE stop` to clear a "stale" listener (that tears down your Psyche); and live agents re-arm with `listen --live` when a re-arm is genuinely needed.
+
+### BTS
+- debug/post-clear-poll-psyche-misread: `src/common/list_filter.rs::collect` and `src/live/list_psyches.rs` gain a `wrapper_backed_alive` check (`owlery::is_wrapper_alive` on the `-psyche`-stripped id) that forces a wrapper-owned psyche perch ONLINE and skips the destructive `ready` soft-clean — closing the gap where the existing Gate-A wrapper protection covered only the info-missing branch, not the info-present stale path. Wrapper-owned psyche perches carry the inner-poll pid and no `parent_pid` (types.rs:182-186), so the inner poll exiting during ingest otherwise read as dead. SessionStart reorientation string in `src/owl/resume.rs` corrected (BUSY=online, post-/clear do-nothing, no `$LIVE stop`, live-aware `{poll_cmd}` re-arm). 1 new regression test (`live_wrapper_keeps_busy_psyche_online_and_ready_intact`).
+
 ## [1.11.23] - 2026-06-02
 
 ### Fixed

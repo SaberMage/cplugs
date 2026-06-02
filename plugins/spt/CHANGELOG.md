@@ -4,6 +4,14 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.25] - 2026-06-02
+
+### Fixed
+- **A live agent re-orienting after `/clear` now gets its full context back instead of an empty one.** When a live agent cleared its context, the automatic re-hydration that re-sends your saved live-context and project-context to Self could arrive empty (`<live-context></live-context>`), leaving the freshly-cleared agent with nothing to resume from. The re-hydration was being summarized as a "delta" — and right after a `/clear` there is no new work versus the saved snapshot, so the summary was correctly empty. The clear-path now re-emits your saved context verbatim instead of computing a delta, so a post-`/clear` agent wakes up with its real state.
+
+### BTS
+- debug/fire-ec-empty-slices: root cause was a prompt/intent mismatch, not a slice-threading or persistence bug. The FIRE-EC `source=clear` re-emission reused the cadence echo-commune DELTA prompt; post-`/clear` the delta is genuinely empty so the haiku emitted empty slice bodies by design and the envelope faithfully forwarded them. Fix threads `source` end-to-end (`cli.rs` `--source` flag → `owl/mod.rs` → `echo_fire.rs` `build_inner_argv`/`fire_echo_commune_inner` → `wrapper/mod.rs` `fire_echo_commune_force`; cadence/orphan paths pass `None`/carry no flag). `run_echo_commune` extracts `build_echo_commune_prompt`: `source=="clear"` selects a re-emit prompt (echo `CURRENT_LIVE_CONTEXT`/`CURRENT_PROJECT_CONTEXT` verbatim), all other values keep the delta prompt. Belt-and-suspenders: the Self-leg dispatch (`forward_to_self`) now falls back to the on-disk snapshot via `two_slice_effectively_empty` + `snapshot_two_slice_body` + a `self_body_override` closure when the haiku emits empty slices (`Some("")` from `extract_tag` treated as empty). 13 new tests (10 `fire_ec_empty_slices_tests` + 3 `--source` clap parse). Commit `c965c4a`.
+
 ## [1.11.24] - 2026-06-02
 
 ### Fixed

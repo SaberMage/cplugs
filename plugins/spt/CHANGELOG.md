@@ -4,9 +4,19 @@ All notable changes to the SPT (Spacetime / Sentience Pocket Transacter) plugin 
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries authored retroactively from `git log --grep='chore: bump'` at Phase 34 (v1.7.1 milestone).
 
+## [1.11.23] - 2026-06-02
+
+### Fixed
+- **A manual commune or signoff no longer triggers a redundant automatic context summary right afterward.** Sending a `/spt:commune` (or signing off) already flushes your latest context to the Psyche; previously a pending background cadence trigger could still fire a duplicate echo-commune moments later. Delivering a commune/signoff now also clears that pending trigger, so the next automatic summary waits for the normal cadence.
+
+### BTS
+- quick-260602-2ar: `process_file_drop` (`src/live/wrapper/mod.rs`) now clears the `.more-done` cadence sentinel at its two FILE-DROP consume exits (empty-body signoff skip + the shared `exit_code == 0` block covering commune / init-stale signoff / normal signoff), gated on consume success so a failed consume keeps the sentinel. The previously-inlined delete-both logic in `echo_fire.rs` was extracted into a shared free fn `remove_both_more_done(nested, flat)` + `WrapperState::delete_more_done_sentinel()` (derives both paths via `owlery::nested_perch_dir` + `perch_dir`, honoring the reader/writer path-asymmetry KNOWN-HAZARD); `fire_echo_commune_if_due` rewired onto it so fire-path and consume-path share one delete code path. 2 new echo_fire unit tests.
+
 ## [1.11.22] - 2026-05-30
 
 ### Fixed
+- **Attaching a second machine no longer overwrites the other machine's agent context.** `psyche-sync-setup` used force-push semantics for agent branches, so attaching a second machine could clobber remote branch heads holding the first machine's most recent writes (a data-loss risk). Setup now reconciles before pushing — fetches the remote, rebases any diverged branches onto the remote head, and pushes per-ref with observable outcomes — so concurrent machines converge instead of overwriting each other.
+- **Second-machine setup no longer fails with a non-fast-forward rejection.** Each machine used to generate its own empty-seed commit, creating a `main` divergence that setup then refused to push past. The seed bootstrap is now deterministic (every machine produces a byte-identical `main`), and pre-existing wall-clock-seeded installs are absorbed automatically through the new reconciliation path — no migration command needed.
 - **`psyche-sync-setup` failures now show a readable error.** The skill's failure path printed raw Rust debug output (`GitFailed(Nonzero { stderr: "..." })`); it now prints the curated, human-readable error line so you can actually act on it.
 - **Live agents in non-git host projects now back up their project context.** Starting a live agent in a directory that is not a git repository previously skipped syncing that project's tracked context (`psyches/tracked/projects/<name>/`) — the project-name resolver returned nothing outside a git repo. It now falls back to the directory's own name (guarded against ref-unsafe characters), so non-git projects get their context worktree, commit, and push like any other.
 
@@ -15,6 +25,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 - **`psyche-sync-setup` skill documents exit code 1 and a recovery path.** The exit-code list now covers code 1 (generic setup failure), and a new "Recovering from a failed setup" section walks through re-run → `$OWL doctor` → `--disable` + re-setup.
 
 ### BTS
+- Phase 35.2 (v1.8, deployed in this release): `accept_flow` reconciliation — `git fetch origin` + per-branch `merge-base --is-ancestor` + diverged refs rebased via `rebase -X theirs origin/{branch}` + per-ref `push origin {branch}:{branch}` replacing `push --all` (`ReconcileVerdict`/`PerRefOutcome` types; SYNC-RECON-FETCH-01/PER-BRANCH-01/REBASE-01, SYNC-PUSH-PER-REF-01). `ensure_seed` deterministic bootstrap locks `GIT_COMMITTER_DATE`/`GIT_AUTHOR_DATE` on the cold-path `commit-tree` so seeds converge on a byte-identical `main` SHA (SYNC-BOOTSTRAP-DET-01). 3 plans, single wave.
 - Phase 35.3 (v1.8): D-01 `{:?}`→`{}` flip at `psyche_sync_setup.rs` routed through the existing `SyncError`/`GitError` Display impls, locked by no-debug-syntax regression tests in `sync.rs` + `git.rs` (D-12). Issue 7 fix is a localized guarded basename fallback in `project_name_from_cwd_path` (`owlery.rs`), gated by `validate_id_chars` + psyche-dir rejection; the bug-encoding unit test was rewritten and a traversal-guard test added. Doctor partial-state probe (`check_sync_status`) reuses a new timeout-parameterized `run_git_with_timeout_dur`, detects origin via `git config --file --get remote.origin.url`, and gives `ls-remote` a 2s `SYNC_PROBE_TIMEOUT` network budget (code-review WR-03/WR-04/IN-02 follow-ups). No SyncSettings schema change (backward-compat hard constraint). 4 plans / 2 waves; verification 5/5 must-haves; code review 0 blockers.
 
 ## [1.11.21] - 2026-05-28

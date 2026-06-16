@@ -1,7 +1,8 @@
 ---
 name: setup
 description: |
-  Install or repair spt-core for this Claude Code session (mid-session installer).
+  Install or repair spt-core AND activate the claude-spt adapter for this Claude Code session
+  (mid-session installer + post-install activation).
 allowed-tools: [Bash]
 ---
 
@@ -13,16 +14,42 @@ allowed-tools: [Bash]
 > in this SKILL.md (the floor); the file-backed `[strings.skills].setup` body mirrors them for the
 > spt-present repair path. See `docs/adr/0001-distribution-splits-by-volatility.md`.
 
-Covers the mid-session install gap (ADR-0001): a user who installs the plugin mid-session has not had
-a SessionStart bootstrap fire, so `/sptc:setup` runs the same invisible-installer bootstrap to fetch +
-verify spt-core on demand.
+Covers the mid-session install + activation gap (ADR-0001): a user who installs the plugin mid-session
+has not had a SessionStart bootstrap fire, so `/sptc:setup` runs the same invisible-installer
+bootstrap to fetch + verify spt-core on demand **and then activates the claude-spt adapter**. A
+present binary is not enough: an unregistered/`deregistered` adapter has no profiles/strings/hints/
+`[digest]`, so the `/sptc:*` surface is inert until activation.
 
 **Do this:**
 
-1. If spt-core is already present (`command -v spt && spt --version`), report the version and stop.
-2. Otherwise run the published install-on-demand bootstrap (spt-releases
-   `harness-contract/install-on-demand.md`):
+1. **Binary.** If spt-core is absent (`command -v spt && spt --version` reports nothing), run the
+   published install-on-demand bootstrap (spt-releases `harness-contract/install-on-demand.md`):
    - **POSIX:** `curl -fsSL https://sabermage.github.io/spt-releases/install.sh | sh`
    - **Windows (PowerShell):** `irm https://sabermage.github.io/spt-releases/install.ps1 | iex`
-3. `PATH` is not reloaded in this shell after a fresh install — verify with the absolute path:
+
+   `PATH` is not reloaded in this shell after a fresh install — verify with the absolute path:
    `"$HOME/.local/bin/spt" --version`. After this, `spt update` handles signed self-updates.
+
+2. **Activate the adapter.** Run `spt adapter list` and find `claude-spt`:
+   - Listed and **not** `deregistered` → already active; report it and skip to step 3.
+   - Missing or `deregistered` → activate it:
+     - **Local dev / dogfooding a repo checkout** (an `adapter/claude-spt.toml` is present near cwd):
+       `spt adapter add ./adapter/claude-spt.toml` (the file-form accepts any path + filename).
+     - **End-user (plugin only):** `spt adapter add --release SaberMage/spt-claude-code` — fetches
+       the published `adapter.spt` release asset (tar root = `manifest.toml` + `strings/` + tool
+       binaries) from the repo's GitHub release, extracts to the durable home, registers. `--tag
+       <ver>` pins a version. Recommended (ships from the monorepo, no dedicated repo); needs the spt
+       release carrying `--release`.
+
+3. **Verify + place tool binaries.** Re-run `spt adapter list` — `claude-spt` must read **active**
+   (no `deregistered`). Then check `command -v claude-spt-digest` and `command -v claude-spt-psyche`
+   (the `[digest]`/`[session]` templates invoke them by **bare name from PATH**).
+   - Both resolve → done.
+   - MISS after an `--release` activation → the binaries shipped in `adapter.spt` and extracted
+     **beside the manifest** (the `from …/adapters/_github/<safe>/` path in `spt adapter list`), but
+     copy-mode doesn't put them on PATH. **Interim:** copy `claude-spt-digest` + `claude-spt-psyche`
+     from that extract dir into a PATH dir (the `spt` bin dir works); re-check `command -v`.
+     *(Retires once spt-core resolves adapter binaries against the install dir before PATH —
+     REQ-INSTALL-9.)*
+
+Idempotent and safe to re-run — the same bootstrap + activation the SessionStart hook performs.

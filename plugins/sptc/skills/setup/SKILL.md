@@ -35,21 +35,43 @@ present binary is not enough: an unregistered/`deregistered` adapter has no prof
    - Missing or `deregistered` → activate it:
      - **Local dev / dogfooding a repo checkout** (an `adapter/claude-spt.toml` is present near cwd):
        `spt adapter add ./adapter/claude-spt.toml` (the file-form accepts any path + filename).
-     - **End-user (plugin only):** `spt adapter add --release SaberMage/spt-claude-code` — fetches
-       the published `adapter.spt` release asset (tar root = `manifest.toml` + `strings/` + tool
-       binaries) from the repo's GitHub release, extracts to the durable home, registers. `--tag
-       <ver>` pins a version. Recommended (ships from the monorepo, no dedicated repo); needs the spt
+     - **End-user (plugin only):** the `.spt` carries native binaries, so it ships **per-OS** —
+       pick the host's. Detect: `os=$(uname -s)` → MINGW*/MSYS*/CYGWIN*=windows, Linux=linux,
+       Darwin=macos; `arch=$(uname -m)` → x86_64/amd64=x86_64, arm64/aarch64=aarch64. Then
+       `spt adapter add --release SaberMage/spt-claude-code --asset adapter-$os-$arch.spt` — fetches
+       the per-OS `adapter-<os>-<arch>.spt` asset (tar root = `manifest.toml` + `strings/` + native
+       tool binaries), extracts to the durable home, registers. `--tag <ver>` pins a version. v1
+       ships windows + linux. Recommended (from the monorepo, no dedicated repo); needs the spt
        release carrying `--release`.
 
-3. **Verify + place tool binaries.** Re-run `spt adapter list` — `claude-spt` must read **active**
-   (no `deregistered`). Then check `command -v claude-spt-digest` and `command -v claude-spt-psyche`
-   (the `[digest]`/`[session]` templates invoke them by **bare name from PATH**).
-   - Both resolve → done.
-   - MISS after an `--release` activation → the binaries shipped in `adapter.spt` and extracted
-     **beside the manifest** (the `from …/adapters/_github/<safe>/` path in `spt adapter list`), but
-     copy-mode doesn't put them on PATH. **Interim:** copy `claude-spt-digest` + `claude-spt-psyche`
-     from that extract dir into a PATH dir (the `spt` bin dir works); re-check `command -v`.
-     *(Retires once spt-core resolves adapter binaries against the install dir before PATH —
-     REQ-INSTALL-9.)*
+3. **Verify activation.** Re-run `spt adapter list` — `claude-spt` must read **active**
+   (no `deregistered`). The `[digest]`/`[session]` templates invoke `claude-spt-digest` +
+   `claude-spt-psyche` by **bare name**, and spt-core resolves them **from the adapter install dir**
+   (the `from …/adapters/_github/<safe>/` path in `spt adapter list`), where `--release` activation
+   already extracted them beside the manifest. **No PATH copy needed** (REQ-INSTALL-11, spt v0.8.0
+   Feature B; verified live on v0.8.1 — digest + daemon-hosted Psyche both resolve from the install
+   dir). If either ever fails to start, confirm both `.exe`s are present in that install dir — their
+   absence is a packaging defect, not a PATH problem. *(Legacy F-006 interim PATH-copy: retired.)*
+
+4. **ccs wiring (optional — SCOPE setup #7).** Detect `~/.ccs`:
+   - Present → ccs is installed. The shipped `claude-spt:ccs` profile leaf-replaces the session
+     command with `ccs` (drop-in for `claude`) → run live/ready agents on ccs backends
+     (glm/kimi/custom) via `--adapter claude-spt:ccs` (e.g. `/sptc:live`, `/sptc:ready`,
+     `spt endpoint run --adapter claude-spt:ccs`). Check `command -v ccs`; if `~/.ccs` exists but `ccs`
+     isn't on PATH, point the user at their ccs bin dir. No action needed if unwanted (base
+     `claude-spt` is unaffected).
+   - Absent → ccs is an optional CLI router for driving alternate model backends (glm/kimi/custom) in
+     place of `claude`. To enable: install ccs (its docs), then re-run `/sptc:setup`. Skip if unwanted.
+
+5. **Subnet onboarding (optional — SCOPE setup #3/#4).** A subnet is the private group of paired
+   machines that makes `/sptc:send`, `/sptc:ready`, and live agents work cross-machine (local use
+   needs none). Check: `spt subnet status`.
+   - In a subnet → to invite a machine: `spt subnet show-code` (6-digit code + URI + QR); on the
+     joiner: `spt subnet join <name> --code <code>`.
+   - Not in one → offer create (`spt subnet create <name>` — seed-holder; prints code/URI/QR) or join
+     (`spt subnet join <name> --code <code>`). Skip if single-machine.
+   - Full verb guidance → **/sptc:subnet**. **Elevation:** create/join/show-code are
+     OS-elevation-gated — Windows: elevated (UAC) shell; Linux desktop: pkexec/polkit or sudo
+     terminal; Linux TTY: inline sudo; headless: print the command for the user to run elevated.
 
 Idempotent and safe to re-run — the same bootstrap + activation the SessionStart hook performs.

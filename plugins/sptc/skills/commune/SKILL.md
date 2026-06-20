@@ -1,21 +1,20 @@
 ---
 name: commune
 description: |
-  Send a communal context update to your Psyche.
-argument-hint: "<<stdin>>"
-allowed-tools: [Bash]
+  Push a context update to your Psyche so it can brief your resume across a reset. Use when the
+  user says "commune" or "update psyche", or — as a live agent — after a significant body of work,
+  before a /clear or /compact.
+allowed-tools: [Bash, Write]
 ---
 
 # /sptc:commune
 
-> **Skeleton — thin by design.** Operative instructions for this skill are delivered by the
-> `sptc` adapter at invocation time (UserPromptSubmit injection from the adapter `[strings]`;
-> see `docs/adr/0001-distribution-splits-by-volatility.md`). This SKILL.md stays a stub.
->
-> **Operative.** The UPS hook detects `/sptc:commune` and injects the body from
-> `adapter/strings/skills/commune.md` (UPS-fires-on-slash confirmed, ADR-0002; file-backed
-> `[strings]` shipped, F-003). If injection ever no-ops (spt absent / adapter unregistered), this
-> stub is the floor.
+Brief your Psyche with a context DELTA so it can carry you across a `/clear` or compact. Live agents
+only (a ready agent has no Psyche).
 
-Pushes a context delta to the Psyche via a file-drop (`<id>-commune.md` into the adapter's
-`[session].commune_dir`); the daemon ingests it. Live agents only (a Psyche must exist).
+This is a **file-drop, not a command** — you write the file; spt absorbs it.
+
+1. Get your id: `spt whoami` (empty ⇒ no perch — `/sptc:live` first).
+2. Write `.claude/<id>-commune.md` — a concise delta: current task + status, decisions since the last
+   commune, immediate next steps. One atomic write of the full body.
+3. The file disappearing is the success signal (spt ingested it). If it lingers, you are not live.

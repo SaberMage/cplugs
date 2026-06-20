@@ -1,18 +1,18 @@
 ---
 name: signoff
 description: |
-  Graceful live-agent shutdown with a final context summary.
-allowed-tools: [Bash]
+  Gracefully shut down your live session, saving a final context summary. Use when the user says
+  "sign off" or "graceful stop", or when you (a live agent) are done and want to go offline cleanly.
+allowed-tools: [Bash, Write]
 ---
 
 # /sptc:signoff
 
-> **Skeleton — thin by design.** Operative instructions for this skill are delivered by the
-> `sptc` adapter at invocation time (UserPromptSubmit injection from the adapter `[strings]`;
-> see `docs/adr/0001-distribution-splits-by-volatility.md`). This SKILL.md stays a stub.
->
-> **Operative.** The UPS hook detects `/sptc:signoff` and injects the body from
-> `adapter/strings/skills/signoff.md` (UPS-fires-on-slash confirmed, ADR-0002; file-backed `[strings]`
-> shipped, F-003). If injection ever no-ops (spt absent / adapter unregistered), this stub is the floor.
+End your session's endpoint gracefully, with the final context save.
 
-Cleanly ends a live session, writing a final summary consumed at teardown.
+1. (Optional) Write a brief closing summary first, so the saved context is useful on resume.
+2. `spt endpoint shutdown` (your own perch by default) — stops the listener, fires the final context
+   save, and for a live agent takes the Psyche down with it.
+3. Confirm to the user. You are no longer reachable; `/sptc:ready` or `/sptc:live` brings you back.
+
+Lighter, no-save stop: `spt endpoint stop`. Full options: `spt endpoint shutdown --help`.

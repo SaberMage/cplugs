@@ -58,12 +58,12 @@ sptc_unescape() {
     -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&quot;/"/g' -e 's/&amp;/\&/g'
 }
 
-# Render an `api poll` drain ($1) for CC. Canonical format (ADR-0020): every message is a
+# Render an `api poll` drain ($1) for CC. Canonical format: every message is a
 # self-delimiting `<EVENT type="msg" from="<sender>">body</EVENT>` envelope (spt-proto::event) —
 # the same grammar the live listener emits. Multi-message drains split cleanly on `</EVENT>`.
 # Sender is preserved as `from=` (reply-correlation). NOTE: targets canonical <EVENT>; the current
 # 0.6.0 binary still emits a `__REPLY_TO__` relic at the poll surface until the REQ-MSG-ENVELOPE
-# refactor lands (ADR-0020) — finalize/validate against poll only post-refactor. [unit->REQ-UPS-INJECTION]
+# refactor lands — finalize/validate against poll only post-refactor. [unit->REQ-UPS-INJECTION]
 render_frames() {
   _in="$1"
   [ -z "$_in" ] && return 0
@@ -126,4 +126,81 @@ sptc_cap_output() {
   printf '%s' "$_text" > "$_spill" 2>/dev/null || _spill="(spill failed; content too large to inline)"
   printf '<sptc_overflow bytes="%s" cap="%s" spilled_to="%s">\nDelivery exceeded CC'\''s additionalContext cap. The full content (skill instructions and/or %s message bytes) was written to the file above — read it now to see everything; it is NOT inlined here to avoid silently dropping a message.\n</sptc_overflow>\n' \
     "$_len" "$_cap" "$_spill" "$_len"
+}
+
+# ── SessionStart agent-facing briefs (REQ-DIST-SESSIONSTART-BRIEF) ──────────────────────────────
+# The hook COMPOSES adapter-string briefs into a SessionStart additionalContext block; it never
+# authors agent-facing prose (single-source throughline — bodies live in [strings.briefs]). Pure
+# assemblers below carry the only composition logic ({id} substitution, concat, wrapping) so they
+# unit-test without spt; the impure resolvers wrap them with `spt adapter get-string`.
+
+# Resolve a brief body by key from the adapter `[strings.briefs].<key>` (file-backed or inline).
+# Empty on absent key / unregistered adapter / missing spt — caller tolerates. [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_brief() {
+  _key="$1"; [ -z "$_key" ] && return 0
+  _spt="$(spt_bin)"
+  "$_spt" adapter get-string "$ADAPTER" "briefs.$_key" 2>/dev/null
+}
+
+# PURE: assemble the identity (perched) block. $1=id $2=identity-body $3=messaging-body $4=roster.
+# Substitutes {id} in the identity body (agent ids are [a-z0-9-] — sed-safe, no metachar risk).
+# [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_assemble_perch() {
+  _id="$1"
+  printf '<sptc-active-perch id="%s">\n%s\n\n%s\n\n%s\n</sptc-active-perch>' \
+    "$_id" "$(printf '%s' "$2" | sed "s/{id}/$_id/g")" "$3" "$4"
+}
+
+# PURE: assemble the ring (no-perch) block. $1=messaging-body $2=roster. [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_assemble_noperch() {
+  printf '<sptc-reach>\n%s\n\n%s\n</sptc-reach>' "$1" "$2"
+}
+
+# Impure: resolve + assemble the perched-session identity brief for id $1. [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_perch_brief() {
+  sptc_assemble_perch "$1" "$(sptc_brief identity)" "$(sptc_brief messaging-perch)" "$(sptc_brief endpoint-list)"
+}
+
+# Impure: resolve + assemble the no-perch ring brief. [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_noperch_brief() {
+  sptc_assemble_noperch "$(sptc_brief messaging-no-perch)" "$(sptc_brief endpoint-list)"
+}
+
+# PURE predicate: should this SessionStart inject a brief? Subagent sessions (agent_type set) get
+# none. $1 = the stdin agent_type value (empty = a real user session). [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_is_subagent() { [ -n "$1" ]; }
+
+# PURE predicate: peer-presence gate for the ring brief. Reads `spt subnet status` output on stdin;
+# exit 0 (peers) iff >1 non-empty line (header + >=1 subnet row). Line-count only — NEVER parses a
+# column value (the columnar layout is human-formatted, not a hook contract). [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_has_peers_lines() {
+  _n=$(grep -c . 2>/dev/null)
+  [ "${_n:-0}" -gt 1 ]
+}
+
+# Impure: does this node participate in any subnet (has reachable peers)? [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_node_has_peers() {
+  _spt="$(spt_bin)"
+  "$_spt" subnet status 2>/dev/null | sptc_has_peers_lines
+}
+
+# PURE: JSON-escape stdin into a string value (no surrounding quotes). Escapes \ then " , tabs, CR;
+# newlines become literal \n. awk so multi-line bodies survive. [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_json_escape() {
+  awk '
+    BEGIN { ORS="" }
+    {
+      gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\t/, "\\t"); gsub(/\r/, "\\r");
+      if (NR > 1) printf "%s", "\\n";
+      printf "%s", $0;
+    }
+  '
+}
+
+# Emit a SessionStart hookSpecificOutput JSON line carrying $1 as additionalContext. No-op on empty
+# ($1 unset/blank → nothing to stdout, hook stays silent). [impl->REQ-DIST-SESSIONSTART-BRIEF]
+sptc_emit_additional_context() {
+  [ -z "$1" ] && return 0
+  _esc=$(printf '%s' "$1" | sptc_json_escape)
+  printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$_esc"
 }

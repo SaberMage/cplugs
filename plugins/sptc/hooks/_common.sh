@@ -128,6 +128,40 @@ sptc_cap_output() {
     "$_len" "$_cap" "$_spill" "$_len"
 }
 
+# ── Checkpoint detection (REQ-DIST-CHECKPOINT-COMMUNE) ──────────────────────────────────────────
+# A live agent requests a CHECKPOINT (self-initiated context reset) by embedding the literal
+# `!!checkpoint!!` trigger in its commune. The PostToolUse hook detects it at Write-time and self-sends
+# a structured signal that loops back through the translation binary's clear+wake macro. spt-core
+# v0.15.0 strips the marker from the durable/pending context on ingest, so it is one-shot. The pure
+# predicates below run on a single physical line (the raw hook JSON, whose content newlines are `\n`
+# escapes) so the paired-marker scan works even for a multi-line commune body.
+
+# PURE predicate: does this commune content ($1) carry the checkpoint trigger? exit 0 iff present.
+# [unit->REQ-DIST-CHECKPOINT-COMMUNE]
+sptc_has_checkpoint() {
+  case "$1" in *'!!checkpoint!!'*) return 0 ;; *) return 1 ;; esac
+}
+
+# PURE: extract a CUSTOM wake directive from commune content ($1) — the text between the FIRST pair of
+# `!!checkpoint!!` markers, trimmed. Prints nothing when there is only one marker (single = default
+# wake; the translation binary supplies the default) or none. The pair must be inline (same physical
+# line); a lone or unmatched marker yields the default. [unit->REQ-DIST-CHECKPOINT-COMMUNE]
+sptc_checkpoint_wake() {
+  _n=$(printf '%s' "$1" | grep -o '!!checkpoint!!' | wc -l | tr -d ' ')
+  [ "${_n:-0}" -ge 2 ] || return 0
+  printf '%s' "$1" | sed -n 's/.*!!checkpoint!!\(.*\)!!checkpoint!!.*/\1/p' | head -n1 \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
+
+# PURE predicate: is this tool call ($1=tool_name, $2=file_path, $3=endpoint id) a Write to THIS
+# agent's own commune file `<id>-commune.md`? Suffix match tolerates the JSON-escaped Windows path
+# (doubled backslashes) and either separator. exit 0 iff it is. [unit->REQ-DIST-CHECKPOINT-COMMUNE]
+sptc_is_commune_write() {
+  [ "$1" = "Write" ] || return 1
+  [ -n "$3" ] || return 1
+  case "$2" in *"$3-commune.md") return 0 ;; *) return 1 ;; esac
+}
+
 # ── SessionStart agent-facing briefs (REQ-DIST-SESSIONSTART-BRIEF) ──────────────────────────────
 # The hook COMPOSES adapter-string briefs into a SessionStart additionalContext block; it never
 # authors agent-facing prose (single-source throughline — bodies live in [strings.briefs]). Pure
@@ -164,6 +198,30 @@ sptc_perch_brief() {
 # Impure: resolve + assemble the no-perch ring brief. [impl->REQ-DIST-SESSIONSTART-BRIEF]
 sptc_noperch_brief() {
   sptc_assemble_noperch "$(sptc_brief messaging-no-perch)" "$(sptc_brief endpoint-list)"
+}
+
+# Impure: pull the live-agent durable RESUME context for endpoint id $1 (optional session id $2) via
+# `spt api psyche-download` — the spt-core v0.15.0 W5 verb that closes F-020 (claude-spt rehydrates NO
+# durable context today). stdout = durable role/live/project tiers + the freshest not-yet-synthesized
+# <pending-commune>/<pending-signoff> (trigger stripped core-side), to inject VERBATIM. Mirrors the
+# id-scoped `api poll` auth shape (--session-id proves association; project resolves from the bound
+# cwd, no --project). Empty on NO-CONTEXT (stderr) / the verb absent (pre-v0.15.0 node) / unregistered
+# — caller appends nothing. Also the checkpoint re-seed fast-path. [impl->REQ-DIST-RESUME-CONTEXT]
+sptc_psyche_download() {
+  _id="$1"; [ -z "$_id" ] && return 0
+  _psid="$2"; _spt="$(spt_bin)"
+  if [ -n "$_psid" ]; then
+    "$_spt" api --adapter "$ADAPTER" psyche-download "$_id" --session-id "$_psid" 2>/dev/null
+  else
+    "$_spt" api --adapter "$ADAPTER" psyche-download "$_id" 2>/dev/null
+  fi
+}
+
+# PURE: append resume context ($2) below a SessionStart brief ($1), skipping cleanly when the resume
+# is empty (NO-CONTEXT). Newline-joined so the verbatim XML resume sits below the identity brief.
+# [impl->REQ-DIST-RESUME-CONTEXT]
+sptc_append_resume() {
+  if [ -n "$2" ]; then printf '%s\n%s' "$1" "$2"; else printf '%s' "$1"; fi
 }
 
 # PURE predicate: should this SessionStart inject a brief? Subagent sessions (agent_type set) get

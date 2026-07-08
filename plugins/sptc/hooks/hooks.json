@@ -24,8 +24,14 @@
     "PostToolUse": [
       { "matcher": "Write", "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" PostToolUse", "shell": "bash" } ] }
     ],
+    "PostToolUseFailure": [
+      { "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" PostToolUseFailure", "shell": "bash" } ] }
+    ],
     "Notification": [
-      { "matcher": "idle_prompt", "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" Notification", "shell": "bash" } ] }
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" Notification", "shell": "bash" } ] }
+    ],
+    "StopFailure": [
+      { "hooks": [ { "type": "command", "command": "sh \"$CLAUDE_PLUGIN_ROOT/hooks/dispatch.sh\" StopFailure", "shell": "bash" } ] }
     ]
   }
 }

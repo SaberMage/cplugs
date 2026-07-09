@@ -3,6 +3,7 @@ name: list-agents
 description: |
   List SPT agents and endpoints reachable from this node. Use when the user says "list agents",
   "who's live", "who's listening", or wants a roster of active perches.
+argument-hint: "[--show-all] [--workers] [--detail]"
 allowed-tools: [Bash]
 ---
 

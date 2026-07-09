@@ -5,10 +5,11 @@ description: |
   user says "commune" or "update psyche", or — as a live agent — after a significant body of work,
   before a /clear or /compact. Pass --checkpoint to ALSO auto-clear and wake yourself from the
   freshest commune (an agent-driven context reset, no operator needed).
+argument-hint: "[--checkpoint]"
 allowed-tools: [Bash, Write]
 ---
 
-<!-- [doc->REQ-DIST-CHECKPOINT-COMMUNE] [doc->REQ-DIST-SKELETON-THIN] -->
+<!-- [doc->REQ-DIST-CHECKPOINT-COMMUNE] [doc->REQ-DIST-SKELETON-THIN] [doc->REQ-SKILL-ARG-HINT] -->
 
 # /sptc:commune
 

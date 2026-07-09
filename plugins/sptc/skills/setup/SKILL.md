@@ -3,6 +3,7 @@ name: setup
 description: |
   Install or repair spt-core AND activate the claude-spt adapter for this Claude Code session
   (mid-session installer + post-install activation).
+argument-hint: ""
 allowed-tools: [Bash]
 ---
 

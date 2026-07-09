@@ -4,7 +4,7 @@ description: |
   Make this Claude Code session reachable for inter-agent messages (register a perch and
   listen). Use when the user says "listen as", "ready as", or wants to receive messages from
   other agents.
-argument-hint: "[<id>]"
+argument-hint: "[<id>] [--once]"
 allowed-tools: [Bash, Read, Monitor]
 ---
 

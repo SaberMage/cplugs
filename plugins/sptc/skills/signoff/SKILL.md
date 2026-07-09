@@ -3,10 +3,11 @@ name: signoff
 description: |
   Gracefully shut down your live session, saving a final context summary. Use when the user says
   "sign off" or "graceful stop", or when you (a live agent) are done and want to go offline cleanly.
+argument-hint: ""
 allowed-tools: [Bash, Write]
 ---
 
-<!-- [doc->REQ-DIST-SKELETON-THIN] -->
+<!-- [doc->REQ-DIST-SKELETON-THIN] [doc->REQ-SKILL-ARG-HINT] -->
 
 # /sptc:signoff
 

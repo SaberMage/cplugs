@@ -3,6 +3,7 @@ name: version
 description: |
   Report the spt-core-tracked adapter version (the version-of-truth, not the marketplace plugin
   version). Use when the user asks the spt or adapter version, or runs /sptc:version.
+argument-hint: ""
 allowed-tools: [Bash]
 ---
 

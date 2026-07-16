@@ -33,9 +33,9 @@ Bash tool:
   to each target and confirms back into your context (which delivered, which had no perch). Multiple
   `@<…@>` blocks in one output all fire. A bare `@@id` does nothing (only the explicit block sends).
 
-**Use the tag as the primary way to send the SAME message to several agents at once** (comma-separate
-the ids). For a single-target send, prefer the `printf … | spt send <target>` CLI above when you have
-the Bash tool — it is more direct.
+**Use the tag as the fastest method for sending short messages and replies to one or more agents**
+(comma-separate the ids for several targets). Longer messages should leverage the
+`printf … | spt send <target>` CLI above when you have the Bash tool.
 
 To commune, use `/sptc:commune` (or write `.claude/<id>-commune.md`) — the reliable path.
 

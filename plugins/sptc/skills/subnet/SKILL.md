@@ -13,7 +13,10 @@ allowed-tools: [Bash]
 > **Skeleton — thin by design.** Operative instructions for this skill are delivered by the
 > `sptc` adapter at invocation time. Look out for the UserPromptSubmit additionalContext.
 >
-> **Operative.** If injection ever no-ops (spt absent / adapter unregistered), check
-> SPT's installation status using the skill `sptc:setup`. Otherwise, avoid additional steps.
+> **Operative — ONE tool call, always.** If the injected `<sptc_skill name="subnet">` block is not
+> in this turn's context, do NOT investigate, do NOT read files, and do NOT route to `sptc:setup`.
+> Just run `spt subnet --help`, then the one subcommand the user asked for (create / invite / join) and answer from its output.
+>
+> Run `/sptc:setup` ONLY if that call comes back saying `spt` itself is missing.
 
 Pairs machines into a private network so agents reach each other across nodes.

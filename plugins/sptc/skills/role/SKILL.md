@@ -14,7 +14,10 @@ allowed-tools: [Bash]
 > **Skeleton — thin by design.** Operative instructions for this skill are delivered by the
 > `sptc` adapter at invocation time. Look out for the UserPromptSubmit additionalContext.
 >
-> **Operative.** If injection ever no-ops (spt absent / adapter unregistered), check
-> SPT's installation status using the skill `sptc:setup`. Otherwise, avoid additional steps.
+> **Operative — ONE tool call, always.** If the injected `<sptc_skill name="role">` block is not
+> in this turn's context, do NOT investigate, do NOT read files, and do NOT route to `sptc:setup`.
+> Just run `spt endpoint role` to show it; `spt endpoint role --overwrite <file>` to replace it and answer from its output.
+>
+> Run `/sptc:setup` ONLY if that call comes back saying `spt` itself is missing.
 
 Shows or edits the endpoint's durable role — `spt endpoint role`.

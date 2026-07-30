@@ -18,8 +18,12 @@ already carries send/reply in its **SessionStart brief** (the `messaging-perch` 
 - **Send:** `printf '%s' "<body>" | spt send <target>` — `SENT` = live, `QUEUED` = spooled (success, do
   not retry).
 - **Reply:** `printf '%s' "<body>" | spt send <sender>` (sender = the `from` on the `<EVENT>` you got).
-- No perch yet? `/sptc:ready` (or `/sptc:live`) first, or send-and-wait without one via
-  `printf '%s' "<body>" | spt ring <target> --timeout 60`.
+- No perch yet? `/sptc:ready` (or `/sptc:live`) first — that is the only way a reply can reach you.
+- **`spt ring` is for perchless sessions ONLY.** It sends and blocks for the reply, which is what a
+  session with no listener needs and what a perched one never does: if you have a perch — spt-hosted
+  or harness-hosted — always `spt send` and let the reply arrive on your perch. (Ring is safe on
+  spt-core v0.46.0+; older cores read a down ready marker as "no perch", then adopted and deleted the
+  perch directory — ready file, `info.json`, spool — silently.)
 
 ## Shortform — best for fan-out to many agents
 

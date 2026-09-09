@@ -81,13 +81,14 @@ the injected instructions or your SessionStart brief; the concepts are here:
   asynchronously — fire-and-forget. Write it and continue; do NOT watch for the file to disappear or
   poll for confirmation, as its vanishing is not a reliable success signal. This is what rebuilds you
   after a reset, so make it complete.
-- **Commune across** — a commune that ALSO clears your context window and rebuilds it from that
+- **Recharge** — a commune that ALSO clears your context window and rebuilds it from that
   commune (the agent-driven `/clear`, no operator). It does **NOT** take your perch or Psyche down:
   you stay live and reachable throughout. It frees a bloated, degrading context window and restores
   your durable context, so you come back lean and keep working — never avoid it for fear of losing
-  your perch. It is the OPPOSITE of signoff. When the operator says "commune across", "commune to
-  next session", "save and clear", or "compact and continue", they mean THIS. (Claude Code's own
-  `/checkpoint` command is an unrelated feature — never conflate the two.)
+  your perch. It is the OPPOSITE of signoff. When the operator says "recharge", "save and clear", or
+  "compact and continue", they mean THIS — and so do the older spellings "commune across" / "commune
+  to next session", which are still accepted. (Claude Code's own `/checkpoint` command is an
+  unrelated feature — never conflate the two.)
 - **Sign off** — when you are done: stop the listener, save final context, and take your Psyche down.
   `/sptc:ready` or `/sptc:live` brings you back.
 

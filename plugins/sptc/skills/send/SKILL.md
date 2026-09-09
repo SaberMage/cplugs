@@ -36,6 +36,9 @@ Bash tool:
   first space (no spaces inside the list); the body runs to the first `@>`. The adapter sends `body`
   to each target and confirms back into your context (which delivered, which had no perch). Multiple
   `@<…@>` blocks in one output all fire. A bare `@@id` does nothing (only the explicit block sends).
+  A tag in your turn's **final** output dispatches as the turn ends and confirms on your **next**
+  turn (marked as the previous turn's result) — no confirmation yet does not mean unsent; never
+  resend a turn-end tag.
 
 **Use the tag as the fastest method for sending short messages and replies to one or more agents**
 (comma-separate the ids for several targets). Longer messages should leverage the

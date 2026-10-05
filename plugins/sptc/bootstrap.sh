@@ -5,13 +5,21 @@
 # [impl->REQ-DIST-BOOTSTRAP-INSTALL]
 set -eu
 
-if ! command -v spt >/dev/null 2>&1; then
+# A trimmed PATH (daemon-spawned session) must not read as "absent": probe the documented install
+# dir before reinstalling, or every SessionStart re-runs the installer. [impl->REQ-HAZARD-DAEMON-PATH-TRIMMED]
+HOME_SPT="${SPT_HOME:-$HOME/.spt-core}/bin/spt"
+if command -v spt >/dev/null 2>&1; then
+  SPT="spt"
+elif [ -x "$HOME_SPT" ]; then
+  SPT="$HOME_SPT"
+elif [ -x "$HOME/.local/bin/spt" ]; then
+  SPT="$HOME/.local/bin/spt"
+else
   echo "spt-core not found - installing..." >&2
   curl -fsSL https://sabermage.github.io/spt-releases/install.sh | sh
   # PATH is not yet reloaded in this shell — use the absolute install path for the first call.
-  SPT="$HOME/.local/bin/spt"
-else
-  SPT="spt"
+  SPT="$HOME_SPT"
+  [ -x "$SPT" ] || SPT="$HOME/.local/bin/spt"
 fi
 
 "$SPT" --version

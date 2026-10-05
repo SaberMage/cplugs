@@ -22,8 +22,8 @@ allowed-tools: [Bash]
 > Run `/sptc:setup` ONLY if that call comes back saying `spt` itself is missing.
 
 Asks an endpoint for permission to reach it, and answers the asks that arrive for you.
-<!-- [impl->REQ-SKILL-KNOCK] The skeleton half: frontmatter + argument-hint + the one-tool-call
+<!-- [shipped->REQ-SKILL-KNOCK] The skeleton half: frontmatter + argument-hint + the one-tool-call
      operative note. The body is `[strings.skills].knock` in adapter/claude-spt.toml, UPS-injected
      at invocation, and the skill id is in SPTC_SKILLS so the bare `/knock` shortname resolves. -->
-<!-- [impl->REQ-SKILL-ARG-HINT] -->
-<!-- [impl->REQ-DIST-SKELETON-THIN] -->
+<!-- [shipped->REQ-SKILL-ARG-HINT] -->
+<!-- [shipped->REQ-DIST-SKELETON-THIN] -->

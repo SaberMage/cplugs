@@ -20,16 +20,19 @@
 event="$1"
 
 # Resolve the spt binary (PATH first, then known install locations) — only needed to get-string the
-# hook command; the binary itself is resolved from {adapter_dir}, not PATH.
+# hook command; the binary itself is resolved from {adapter_dir}, not PATH. `${SPT_HOME:-$HOME/.spt-core}/bin`
+# is where `spt install` puts it on Linux (harness-contract/install-on-demand); a daemon-spawned
+# session can carry a PATH that lacks it (niskon, 2026-10-05). Prints nothing when spt is nowhere.
+# [impl->REQ-HAZARD-DAEMON-PATH-TRIMMED]
 spt_bin() {
   if command -v spt >/dev/null 2>&1; then printf 'spt'; return 0; fi
   for p in \
+    "${SPT_HOME:-$HOME/.spt-core}/bin/spt" \
     "$HOME/.local/bin/spt" \
     "$LOCALAPPDATA/spt-core/bin/spt.exe" \
     "$HOME/AppData/Local/spt-core/bin/spt.exe"; do
     [ -x "$p" ] && { printf '%s' "$p"; return 0; }
   done
-  printf 'spt'
 }
 
 # SessionStart only: invisible-installer (install spt-core if absent — no-op when present). Redirect
@@ -41,7 +44,15 @@ fi
 # Resolve the binary PATH: cached env first, else the lazily-substituted adapter string.
 bin="${SPTC_HOOK_BIN:-}"
 if [ -z "$bin" ]; then
-  bin=$("$(spt_bin)" adapter get-string claude-spt hook_cmd </dev/null 2>/dev/null) || true
+  spt=$(spt_bin)
+  # spt nowhere → LOUD, never a silent exit 0: every hook (message drain, seals, now-signal) would
+  # be dead while the operator believes it is live. Exit 1 makes Claude Code show the stderr as a
+  # non-blocking hook error. [impl->REQ-HAZARD-DAEMON-PATH-TRIMMED]
+  if [ -z "$spt" ]; then
+    echo "sptc: spt not found on PATH or in ${SPT_HOME:-$HOME/.spt-core}/bin — spt hooks are OFF for this session (no messages, no seals)" >&2
+    exit 1
+  fi
+  bin=$("$spt" adapter get-string claude-spt hook_cmd </dev/null 2>/dev/null) || true
 fi
 
 # Adapter not registered yet (pre-/sptc:setup) → no perch to serve → no-op.

@@ -12,7 +12,7 @@ allowed-tools: [Bash, Write]
 ---
 
 <!-- [doc->REQ-DIST-CHECKPOINT-COMMUNE] [doc->REQ-DIST-SKELETON-THIN] [doc->REQ-SKILL-ARG-HINT] -->
-<!-- [impl->REQ-RECHARGE-VOCABULARY] -->
+<!-- [shipped->REQ-RECHARGE-VOCABULARY] -->
 
 # /sptc:commune
 

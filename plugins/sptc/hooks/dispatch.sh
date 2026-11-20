@@ -71,6 +71,16 @@ if [ "$event" = "SessionStart" ] && [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -z "${SPT
   printf 'SPTC_HOOK_BIN="%s"\n' "$bin" >> "$CLAUDE_ENV_FILE"
 fi
 
+# The AGENT's Bash needs bare `spt` too: the briefs teach `... | spt send <target>`. A daemon-spawned
+# session can carry a PATH without the install dir, and a non-login, non-interactive shell never runs
+# the installer's ~/.bashrc line (SteamOS returns before it; Request #54). When spt is off PATH but
+# found in a known install dir, put that dir on PATH for every Bash call via $CLAUDE_ENV_FILE.
+# '$PATH' stays literal so it expands when CC sources the file. [impl->REQ-HAZARD-DAEMON-PATH-TRIMMED]
+if [ "$event" = "SessionStart" ] && [ -n "${CLAUDE_ENV_FILE:-}" ] && ! command -v spt >/dev/null 2>&1; then
+  _s=$(spt_bin)
+  [ -n "$_s" ] && printf 'export PATH="%s:$PATH"\n' "${_s%/*}" >> "$CLAUDE_ENV_FILE"
+fi
+
 # Exec the binary: `"$bin"` is the program (quoted → space-safe), `hook` the subcommand (literal),
 # then the CC event + the seed pid. CC stdin (the hook payload) is inherited untouched — the binary
 # reads it directly. $PPID is the seed pid (Rust std has no portable getppid on Windows).
